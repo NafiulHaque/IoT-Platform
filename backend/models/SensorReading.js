@@ -6,6 +6,12 @@ const SensorReadingSchema = new mongoose.Schema({
   humidity:   { type: Number },
   heat_index: { type: Number },
   uptime_ms:  { type: Number },
+  voltage:    { type: Number },
+  current:    { type: Number },
+  power:      { type: Number },
+  energy:     { type: Number },
+  frequency:  { type: Number },
+  pf:         { type: Number },
   receivedAt: { type: Date, default: Date.now }
 });
 

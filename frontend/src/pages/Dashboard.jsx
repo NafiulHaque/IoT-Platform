@@ -155,6 +155,8 @@ export default function Dashboard() {
      <div className='flex gap-2'>
       <CircularGauge value={latest?.temp_c} label={"Temperatur"} unit={"C"} max={50}/>
      <CircularGauge value={latest?.humidity} label={"Humidity"} unit={"%"}/>
+     <CircularGauge value={latest?.voltage} label={"Voltage"} unit={"V"} max={300} />
+     <CircularGauge value={latest?.frequency} label={"Frequency"} unit={"Hz"} max={60} />
      </div>
 
 

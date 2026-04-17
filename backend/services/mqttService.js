@@ -28,7 +28,7 @@ const connectMQTT = (socketIO) => {
       const payload = JSON.parse(message.toString());
       
       // console.log(`[MQTT] ${topic}:`, payload);
-      console.log(`[${nowBD()}] MQTT message on ${topic}:`)
+      console.log(`[${nowBD()}] MQTT message on ${topic}:`, payload)
   
       
       // Save to MongoDB
@@ -38,6 +38,14 @@ const connectMQTT = (socketIO) => {
         humidity:   payload.humidity,
         heat_index: payload.heat_index,
         uptime_ms:  payload.uptime_ms,
+        voltage:    payload.voltage,
+        current:    payload.current,
+        power:      payload.power,
+        energy:     payload.energy,
+        frequency:  payload.frequency,
+        pf:         payload.pf,
+
+
         // receivedAt: bdTime,
       });
 

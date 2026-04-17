@@ -4,6 +4,8 @@
 #include <ArduinoJson.h>
 #include <DHT.h>
 
+#include <PZEM004Tv30.h>
+
 #include <SPI.h>
 #include <Wire.h>
 #include <Adafruit_GFX.h>
@@ -49,9 +51,9 @@ const char* password = "WiFi@987654321";
 // ─── HiveMQ Cloud ───────────────────────────────────
 const char* mqtt_host = "b97f2e41b9544425ab8ca239071f0ddf.s1.eu.hivemq.cloud";
 const int   mqtt_port = 8883;
-const char* mqtt_user = "esp32_device_01";
-const char* mqtt_pass = "StrongPass123";
-const char* client_id = "esp32_device_01";
+const char* mqtt_user = "EMDev_01";
+const char* mqtt_pass = "EMDev@01";
+const char* client_id = "EMDev_01";
 
 // HiveMQ Cloud root CA certificate
 // Download from: https://letsencrypt.org/certs/isrgrootx1.pem
@@ -91,9 +93,15 @@ emyPxgcYxn/eR44/KJ4EBs+lVDR3veyJm+kXQ99b21/+jh5Xos1AnX5iItreGCc=
 )EOF";
 
 // Topic
-const char* topic_dht    = "factory/line1/esp32_01/dht";  
-const char* topic_status   = "factory/line1/esp32_01/status";
+const char* topic_EM    = "factory/line1/EMDev_01/EM";  
+const char* topic_status   = "factory/line1/EMDev_01/status";
 
+
+/* Use ESP32 Hardware Serial 2 for pzem*/
+#define RX_PIN 16
+#define TX_PIN 17
+
+PZEM004Tv30 pzem(Serial2, RX_PIN, TX_PIN);
 
 // ─── DHT11 ──────────────────────────────────────────
 #define DHT_PIN  4                      
@@ -215,29 +223,51 @@ void connectMQTT() {
 }
 
 
-void publishDHT() {                     // ★ NEW — replaces old publishSensorData()
+void publishData() {                     // ★ NEW — replaces old publishSensorData()
   float temperature = dht.readTemperature();   // Celsius by default
   float humidity    = dht.readHumidity();
+
+    // Read parameters of pzem
+  float voltage = pzem.voltage();
+  float current = pzem.current();
+  float power = pzem.power();
+  float energy = pzem.energy();
+  float frequency = pzem.frequency();
+  float pf = pzem.pf();
+
+
 
   // DHT11 sometimes returns NaN on bad reads — always validate
   if (isnan(temperature) || isnan(humidity)) {
     Serial.println("DHT11 read failed — skipping publish");
     oledError("DHT11 Read Fail");  
     return;                             // skip this cycle, try next interval
+  }else if(isnan(voltage)){
+    Serial.println("PZEM Sensor read failed--slipping publish");
+    oledError("PZEM Read Fail");
+    return;
   }
+
   oledSensorData(temperature, humidity);  
  // Build JSON payload
   StaticJsonDocument<200> doc;
-  doc["device_id"]  = "esp32_01";
+  doc["device_id"]  = "EMDev_01";
   doc["temp_c"]     = serialized(String(temperature, 1));
   doc["humidity"]   = serialized(String(humidity, 1));
   doc["heat_index"] = serialized(String(dht.computeHeatIndex(temperature, humidity, false), 1));
   doc["uptime_ms"]  = millis();
+  doc["voltage"] = serialized(String(voltage, 2));
+  doc["current"] = serialized(String(current, 2));
+  doc["power"] = serialized(String(power, 2));
+  doc["energy"] = serialized(String(energy, 3));
+  doc["frequency"] = serialized(String(frequency));
+  doc["pf"] = serialized(String(pf));
+  
 
   char payload[200];
   serializeJson(doc, payload);
 
-  bool success = client.publish(topic_dht, payload);
+  bool success = client.publish(topic_EM, payload);
   Serial.print(success ? "Published: " : "Publish FAILED: ");
   Serial.println(payload);
 }
@@ -276,6 +306,6 @@ void loop() {
   unsigned long now = millis();
   if (now - lastPublish >= publishInterval) {
     lastPublish = now;
-    publishDHT();                       // ★ NEW
+    publishData();                       // ★ NEW
   }
 }
