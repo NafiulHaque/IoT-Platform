@@ -10,9 +10,9 @@ const Gauge = ({ value, min, max, label, unit, delay = 0 }) => {
     const { theme } = useTheme()
 
    const colors = {
-    [THEMES.dark]:       { temp: '#818cf8', hum: '#34d399', grid: '#334155', text: '#94a3b8', gaugeBorderMin: '#16a34a', gaugeBorderMid: '#eab308', gaugeBorderMax: '#dc2626' },
-    [THEMES.enterprise]: { temp: '#3182ce', hum: '#38a169', grid: '#bee3f8', text: '#718096', gaugeBorderMin: '#2c5282', gaugeBorderMid: '#63b3ed', gaugeBorderMax: '#ebf8ff' },
-    [THEMES.graphite]:   { temp: '#374151', hum: '#059669', grid: '#e4e4e7', text: '#9ca3af', gaugeBorderMin: '#f2f2f2', gaugeBorderMid: '#9ca3af', gaugeBorderMax: '#4b5563' },
+    [THEMES.dark]:       { temp: '#818cf8', hum: '#34d399', grid: '#334155', text: '#94a3b8', gaugeBorderMax: '#dc2626', gaugeBorderMid: '#eab308', gaugeBorderMin: '#16a34a' },
+    [THEMES.enterprise]: { temp: '#3182ce', hum: '#38a169', grid: '#bee3f8', text: '#718096', gaugeBorderMax: '#ebf8ff', gaugeBorderMid: '#63b3ed', gaugeBorderMin: '#2c5282' },
+    [THEMES.graphite]:   { temp: '#374151', hum: '#059669', grid: '#e4e4e7', text: '#9ca3af', gaugeBorderMax: '#4b5563', gaugeBorderMid: '#9ca3af', gaugeBorderMin: '#f2f2f2' },
   }[theme]
 
 console.log('Gauge render with theme:', colors);

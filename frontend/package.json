@@ -12,9 +12,11 @@
   "dependencies": {
     "@tailwindcss/vite": "^4.2.2",
     "axios": "^1.14.0",
+    "chart.js": "^4.5.1",
     "d3": "^7.9.0",
     "prop-types": "^15.8.1",
     "react": "^19.2.4",
+    "react-chartjs-2": "^5.3.1",
     "react-dom": "^19.2.4",
     "react-gauge-component": "^2.0.28",
     "react-hot-toast": "^2.6.0",

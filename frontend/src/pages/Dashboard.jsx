@@ -152,7 +152,7 @@ export default function Dashboard() {
           subColor={tc.muted}
         />
       </div>
-     <div className='flex gap-2'>
+     <div className='grid grid-cols-2 md:grid-cols-4 gap-4'>
       <CircularGauge value={latest?.temp_c} label={"Temperatur"} unit={"C"} max={50}/>
      <CircularGauge value={latest?.humidity} label={"Humidity"} unit={"%"}/>
      <CircularGauge value={latest?.voltage} label={"Voltage"} unit={"V"} max={300} />

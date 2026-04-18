@@ -21,6 +21,7 @@ app.use(express.json());
 app.use('/api/auth',     require('./routes/auth'));
 app.use('/api/devices',  require('./routes/devices'));
 app.use('/api/readings', require('./routes/readings'));
+app.use('/api/analytics', require('./routes/analytics'));
 
 
 // ── Socket.IO auth middleware ──
