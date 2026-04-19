@@ -1,45 +1,120 @@
-
 @import "tailwindcss";
-/* Tailwind v4 uses @import instead of @tailwind directives */
-/* stylelint-disable unknownAtRules */
+
+/* ── Tailwind v4 theme tokens ─────────────────────── */
 @theme {
-  /* Modern Dark */
-  --color-dark-bg: #0f172a;
-  --color-dark-surface: #1e293b;
-  --color-dark-border: #334155;
-  --color-dark-accent: #6366f1;
-  --color-dark-accent-light: #818cf8;
+  /* Modern Dark palette */
+  --color-dark-bg:       #0f172a;
+  --color-dark-surface:  #1e293b;
+  --color-dark-border:   #334155;
+  --color-dark-muted:    #64748b;
+  --color-dark-text:     #f1f5f9;
+  --color-dark-accent:   #6366f1;
+  --color-dark-accent-h: #818cf8;
 
-  /* Enterprise Blue */
-  --color-blue-navy: #1a365d;
+  /* Enterprise Blue palette */
+  --color-blue-navy:    #1a365d;
   --color-blue-primary: #3182ce;
-  --color-blue-light: #ebf8ff;
-  --color-blue-border: #bee3f8;
+  --color-blue-light:   #ebf8ff;
+  --color-blue-border:  #bee3f8;
+  --color-blue-muted:   #718096;
+  --color-blue-text:    #1a365d;
 
-  /* Minimalist Graphite */
-  --color-gray-50: #fafafa;
-  --color-gray-100: #f4f4f5;
-  --color-gray-200: #e4e4e7;
-  --color-gray-400: #a1a1aa;
-  --color-gray-600: #52525b;
-  --color-gray-800: #27272a;
-  --color-gray-900: #18181b;
+  /* Minimalist Graphite palette */
+  --color-gray-50:  #f9fafb;
+  --color-gray-100: #f3f4f6;
+  --color-gray-200: #e5e7eb;
+  --color-gray-400: #9ca3af;
+  --color-gray-600: #4b5563;
+  --color-gray-700: #374151;
+  --color-gray-800: #1f2937;
+  --color-gray-900: #111827;
+
+  /* Font */
+  --font-sans: ui-sans-serif, system-ui, sans-serif;
 }
-/* @config "./tailwind.config.js"; */
 
-@layer base {
-  body { @apply font-sans antialiased; }
+/* ── Metric colour tokens per theme ───────────────── */
+/* These are NOT @theme — they change per theme        */
+/* so they live in regular CSS with data-theme selectors */
+
+:root,
+[data-theme="dark"] {
+  --color-power:          #fb923c;
+  --color-energy:         #4ade80;
+  --color-voltage:        #c084fc;
+  --color-current:        #60a5fa;
+  --color-pf:             #4ade80;
+  --color-freq:           #fb923c;
+  --color-temp:           #fb923c;
+  --color-hum:            #60a5fa;
+  --color-grid-line:      #1e293b;
+  --color-tick:           #475569;
+  --color-tooltip-bg:     #1e293b;
+  --color-tooltip-border: #334155;
+  --hm-0: #201f3b;
+  --hm-1:  #28265c;
+  --hm-2: #312e81;
+  --hm-3: #4338ca;
+  --hm-4: #6366f1;
 }
 
+[data-theme="enterprise"] {
+  --color-power:          #c05621;
+  --color-energy:         #276749;
+  --color-voltage:        #553c9a;
+  --color-current:        #2b6cb0;
+  --color-pf:             #276749;
+  --color-freq:           #c05621;
+  --color-temp:           #c05621;
+  --color-hum:            #2b6cb0;
+  --color-grid-line:      #bee3f8;
+  --color-tick:           #718096;
+  --color-tooltip-bg:     #ffffff;
+  --color-tooltip-border: #bee3f8;
+  --hm-0: #ebf8ff;
+  --hm-1: #bee3f8;
+  --hm-2: #90cdf4;
+  --hm-3: #4299e1;
+  --hm-4: #2b6cb0;
+}
+
+[data-theme="graphite"] {
+  --color-power:          #b45309;
+  --color-energy:         #065f46;
+  --color-voltage:        #5b21b6;
+  --color-current:        #1e40af;
+  --color-pf:             #065f46;
+  --color-freq:           #b45309;
+  --color-temp:           #b45309;
+  --color-hum:            #1e40af;
+  --color-grid-line:      #f3f4f6;
+  --color-tick:           #9ca3af;
+  --color-tooltip-bg:     #ffffff;
+  --color-tooltip-border: #e5e7eb;
+  --hm-0: #f9fafb;
+  --hm-1: #f3f4f6;
+  --hm-2: #d1d5db;
+  --hm-3: #6b7280;
+  --hm-4: #374151;
+}
+
+/* ── Shared component classes ─────────────────────── */
 @layer components {
-  /* ── shared input style ── */
   .input-field {
     @apply w-full px-4 py-2.5 rounded-lg border text-sm
            focus:outline-none focus:ring-2 transition-all duration-150;
   }
-  /* ── shared button ── */
+
   .btn-primary {
     @apply w-full py-2.5 rounded-lg font-medium text-sm
            transition-all duration-150 focus:outline-none focus:ring-2;
+  }
+
+  .metric-label {
+    @apply text-xs uppercase tracking-wider mb-1;
+  }
+
+  .card-base {
+    @apply rounded-xl p-4 transition-all duration-150;
   }
 }

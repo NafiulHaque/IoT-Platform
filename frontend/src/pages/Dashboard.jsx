@@ -160,7 +160,7 @@ export default function Dashboard() {
      </div>
 
 
-         {selected && (
+         {/* {selected && (
           <SensorGauges
             temp={latest?.temp_c}
             hum={latest?.humidity}
@@ -172,7 +172,7 @@ export default function Dashboard() {
                       temp={0} 
                       hum={0}
                       />
-        }
+        } */}
   
 
       {/* Chart */}

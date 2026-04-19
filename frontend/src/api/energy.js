@@ -12,8 +12,8 @@ export const getHeatmap = (device_id) =>
 export const getDaily = (device_id, days = 7) =>
   api.get(`/analytics/${device_id}/daily?days=${days}`).then(r => r.data)
 
-export const getUptime = (device_id, hours = 24) =>
-  api.get(`/analytics/${device_id}/uptime?hours=${hours}`).then(r => r.data)
+export const getUptime = (device_id) =>
+  api.get(`/analytics/${device_id}/uptime`).then(r => r.data)
 
 export const getSummary = (device_id) =>
   api.get(`/analytics/${device_id}/summary`).then(r => r.data)

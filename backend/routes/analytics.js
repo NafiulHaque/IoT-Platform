@@ -66,32 +66,73 @@ router.get('/:device_id/daily', protect, async (req, res) => {
 // Returns online/offline status per hour
 router.get('/:device_id/uptime', protect, async (req, res) => {
   try {
-    const hours = parseInt(req.query.hours) || 24
-    const since = new Date(Date.now() - hours * 3600 * 1000)
+    const device_id = req.params.device_id
+    const BD_OFFSET = 6 * 60 * 60 * 1000        // UTC+6 ms
 
+    // Last 24 hours in UTC
+    const nowUTC   = new Date()
+    const since    = new Date(nowUTC.getTime() - 24 * 3600 * 1000)
+
+    // Aggregate readings grouped by BST hour (0–23)
     const pipeline = [
-      { $match: { device_id: req.params.device_id, receivedAt: { $gte: since } } },
-      { $addFields: {
-          bdDate: { $dateAdd: { startDate: '$receivedAt', unit: 'hour', amount: 6 } }
-      }},
-      { $group: {
-          _id:     { $hour: '$bdDate' },
-          count:   { $sum: 1 }
-      }},
+      {
+        $match: {
+          device_id,
+          receivedAt: { $gte: since }
+        }
+      },
+      {
+        // Shift UTC → BST by adding 6 hours before extracting hour
+        $addFields: {
+          bstDate: {
+            $dateAdd: {
+              startDate: '$receivedAt',
+              unit:      'millisecond',
+              amount:    BD_OFFSET
+            }
+          }
+        }
+      },
+      {
+        $group: {
+          _id:   { $hour: '$bstDate' },   // 0–23 in BST
+          count: { $sum: 1 },
+          // Track the actual UTC timestamps so we can calc exact coverage
+          firstSeen: { $min: '$receivedAt' },
+          lastSeen:  { $max: '$receivedAt' },
+        }
+      },
       { $sort: { _id: 1 } }
     ]
 
-    const result = await SensorReading.aggregate(pipeline)
-    // Fill missing hours as offline
-    const uptimeMap = {}
-    result.forEach(r => { uptimeMap[r._id] = r.count })
-    const full = Array.from({ length: hours }, (_, i) => {
-      const hour = new Date(since.getTime() + i * 3600 * 1000)
-      const h = new Date(hour.getTime() + 6*3600*1000).getHours()
-      return { hour: h, count: uptimeMap[h] || 0, online: !!(uptimeMap[h]) }
+    const rows = await SensorReading.aggregate(pipeline)
+
+    // Build a full 0–23 BST hour array
+    // Current BST hour so we can mark future hours as "not yet"
+    const nowBST      = new Date(nowUTC.getTime() + BD_OFFSET)
+    const currentBSTH = nowBST.getUTCHours()
+
+    // Map hour → reading count
+    const countMap = {}
+    rows.forEach(r => { countMap[r._id] = r.count })
+
+    const result = Array.from({ length: 24 }, (_, bstHour) => {
+      const isFuture = bstHour > currentBSTH
+      const count    = countMap[bstHour] ?? 0
+
+      return {
+        bstHour,                                   // 0–23
+        label:   bstHour.toString().padStart(2,'0') + ':00',
+        count,
+        online:  !isFuture && count > 0,
+        future:  isFuture,
+        // Uptime percentage within that hour (assuming 10s publish interval)
+        // max possible readings = 3600/10 = 360
+        pct:     isFuture ? null : Math.min(100, Math.round((count / 360) * 100))
+      }
     })
 
-    res.json(full)
+    res.json(result)
   } catch (err) {
     res.status(500).json({ message: err.message })
   }
