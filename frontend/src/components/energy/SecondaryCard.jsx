@@ -10,7 +10,7 @@ export default function SecondaryCard({ label, value, unit, gaugePct, gaugeCssVa
         {value ?? '—'}
         <span className={`text-xs font-normal ml-1 ${tc.muted}`}>{unit}</span>
       </p>
-      <div className={`h-1 rounded-full mt-2 mb-1 ${tc.gaugeTrack}`}>
+      <div className={`h-2 rounded-full mt-2 mb-1 ${tc.gaugeTrack}`}>
         <div
           className="h-full rounded-full transition-all duration-500"
           style={{ width: `${Math.min(100, Math.max(0, gaugePct)).toFixed(1)}%`,

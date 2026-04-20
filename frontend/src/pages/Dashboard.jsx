@@ -1,233 +1,223 @@
 import { useEffect, useState, useCallback } from 'react'
 import { io } from 'socket.io-client'
-import { useAuth } from '../context/AuthContext'
+import {
+  Chart as ChartJS, CategoryScale, LinearScale,
+  PointElement, LineElement, BarElement, Filler, Tooltip, Legend
+} from 'chart.js'
+import { useAuth }         from '../context/AuthContext'
 import { useThemeClasses } from '../context/ThemeContext'
-import api from '../api/axios'
-import StatCard from '../components/StatCard'
-import SensorChart from '../components/SensorChart'
-import SensorDailyAvgChart from '../components/SensorDailyAvgChart'
 import { formatTime, timeAgo } from '../utils/time'
-import SensorGauge from '../components/SenorGauge'
-import SensorGauges from '../components/SenorGauge'
-import CircularGauge from '../components/ReactGauge'
+import { fmtPower, fmtEnergy, fmtVoltage, fmtCurrent,
+         fmtPF, fmtFreq, voltageStatus } from '../utils/energy'
+import { getSummary, getHistory, getHeatmap, getUptime } from '../api/energy'
+import PrimaryCard      from '../components/energy/PrimaryCard'
+import SecondaryCard    from '../components/energy/SecondaryCard'
+import PFGauge          from '../components/energy/PFGauge'
+import DualAxisChart    from '../components/energy/DualAxisChart'
+import EnergyHeatmap    from '../components/energy/EnergyHeatmap'
+import UptimeChart      from '../components/energy/UptimeChart'
+import ConsumptionChart from '../components/energy/ConsumptionChart'
+import DeviceSelector   from '../components/energy/DeviceSelector'
+
+ChartJS.register(
+  CategoryScale, LinearScale, PointElement,
+  LineElement, BarElement, Filler, Tooltip, Legend
+)
 
 let socket
 
-export default function Dashboard() {
+export default function EnergyDashboard() {
   const tc        = useThemeClasses()
   const { token } = useAuth()
 
-  const [devices,      setDevices]      = useState([])
-  const [selected,     setSelected]     = useState(null)
-  const [readings,     setReadings]     = useState([])
-  const [readingDayAvg, setReadingDayAvg] = useState(null)
-  const [latest,       setLatest]       = useState(null)
-  const [liveStatus,   setLiveStatus]   = useState('connecting')
+  const [devices,  setDevices]  = useState([])
+  const [selDev,   setSelDev]   = useState(null)
+  const [latest,   setLatest]   = useState(null)
+  const [history,  setHistory]  = useState([])
+  const [heatmap,  setHeatmap]  = useState(null)
+  const [uptime,   setUptime]   = useState([])
+  const [liveStatus, setLive]   = useState('connecting')
+  const [bdTime,   setBdTime]   = useState('')
 
-  // Load devices
+  // BD clock
   useEffect(() => {
-    api.get('/devices').then(r => {
-      setDevices(r.data)
-      if (r.data.length > 0) setSelected(r.data[0].device_id)
-    })
+    const tick = () => setBdTime(
+      new Date().toLocaleTimeString('en-BD', { timeZone: 'Asia/Dhaka', hour12: false }) + ' BST'
+    )
+    tick(); const id = setInterval(tick, 1000); return () => clearInterval(id)
   }, [])
 
-  // Load historical readings for selected device
+  // Load device list
   useEffect(() => {
-    if (!selected) return
-    api.get(`/readings/${selected}`).then(r => {
-      const sorted = r.data.sort((a, b) => new Date(a.receivedAt) - new Date(b.receivedAt))
-      setReadings(sorted.slice(-30))           // last 30 readings for chart
-      setLatest(sorted[sorted.length - 1])
-    })
-  }, [selected])
-
-  // Calculate daily average for chart last 7 days
-  useEffect(() => {
-    if (!selected) return 
-    try {
-      setReadingDayAvg(null) // reset while loading
-      api.get(`/readings/${selected}/daily`).then(r => {
-        setReadingDayAvg(r.data)
+    import('../api/axios').then(({ default: api }) =>
+      api.get('/devices').then(r => {
+        setDevices(r.data)
+        if (r.data.length > 0) setSelDev(r.data[0].device_id)
       })
-    } catch (error) {
-      console.error('Error fetching daily readings:', error)
-    }
-  }, [selected])  
+    )
+  }, [])
 
 
-  // Socket.IO for live updates
+  // In loadDevice() — no change needed, uptime is already fetched
+// But add a refresh every 60 seconds so the current hour updates live
+
+useEffect(() => {
+  if (!selDev) return
+  const refresh = () =>
+    getUptime(selDev).then(setUptime)
+
+  refresh()                              // immediate on device change
+  const id = setInterval(refresh, 60_000) // refresh every 60s
+  return () => clearInterval(id)
+}, [selDev])
+
+
+  // Load analytics when device changes
+  const loadDevice = useCallback(async (id) => {
+    if (!id) return
+    const [sum, hist, hm, up] = await Promise.all([
+      getSummary(id),
+      getHistory(id, 30),
+      getHeatmap(id),
+      getUptime(id, 24),
+    ])
+    setLatest(sum.latest)
+    setHistory([...hist].sort((a, b) => new Date(a.receivedAt) - new Date(b.receivedAt)))
+    setHeatmap(hm)
+    setUptime(up)
+  }, [])
+
+  useEffect(() => { if (selDev) loadDevice(selDev) }, [selDev])
+
+  // Socket.IO live
   useEffect(() => {
     socket = io('http://localhost:5000', { auth: { token } })
-
-    socket.on('connect',    () => setLiveStatus('live'))
-    socket.on('disconnect', () => setLiveStatus('disconnected'))
-
+    socket.on('connect',    () => setLive('live'))
+    socket.on('disconnect', () => setLive('disconnected'))
     socket.on('sensor_update', ({ device_id, reading }) => {
-      if (device_id !== selected) return
+      if (device_id !== selDev) return
       setLatest(reading)
-      setReadings(prev => [...prev.slice(-29), reading])
-      // Update device online status in list
+      setHistory(prev => [...prev.slice(-29), reading])
       setDevices(prev => prev.map(d =>
-        d.device_id === device_id ? { ...d, status: 'online' } : d
+        d.device_id === device_id ? { ...d, status: 'online', lastSeen: reading.receivedAt } : d
       ))
     })
-
     return () => socket.disconnect()
-  }, [token, selected])
+  }, [token, selDev])
 
-  const LiveDot = () => (
-    <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full
-      ${liveStatus === 'live' ? tc.badge : tc.badgeOff}`}>
-      <span className={`w-1.5 h-1.5 rounded-full
-        ${liveStatus === 'live' ? 'bg-green-400 animate-pulse' : 'bg-red-400'}`} />
-      {liveStatus === 'live' ? 'Live' : 'Reconnecting'}
-    </span>
-  )
+  const vstat = voltageStatus(latest?.voltage)
 
   return (
-    <div className="space-y-6">
+    <div className={tc.page}>
+      <div className="space-y-4 mx-auto ">
 
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold">Dashboard</h1>
-          <p className={`text-sm mt-0.5 ${tc.muted}`}>Real-time sensor monitoring</p>
+        {/* Top bar */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <h1 className="text-lg font-medium">Energy Monitor</h1>
+            
+          </div>
+         <div className="flex items-center gap-3">
+          <span className={`text-xs ${tc.muted}`}>{bdTime}</span>
+          <span className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full
+              ${liveStatus === 'live' ? tc.badge : tc.badgeOff}`}>
+              <span className={`w-1.5 h-1.5 rounded-full
+                ${liveStatus === 'live' ? 'bg-green-400 animate-pulse' : 'bg-red-400'}`} />
+              {liveStatus === 'live' ? 'Live' : 'Reconnecting'}
+            </span>
+         </div>
         </div>
-        <LiveDot />
-      </div>
 
-      {/* Device selector */}
-      {devices.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {devices.map(d => (
-            <button
-              key={d.device_id}
-              onClick={() => setSelected(d.device_id)}
-              className={`px-4 py-1.5 rounded-lg text-xs font-medium border transition-all
-                ${selected === d.device_id
-                  ? `${tc.btn} border-transparent`
-                  : `${tc.border} ${tc.muted} bg-transparent`
-                }`}
-            >
-              {d.name || d.device_id}
-              <span className={`ml-2 ${d.status === 'online' ? 'text-green-400' : 'text-red-400'}`}>
-                {d.status === 'online' ? '●' : '○'}
-              </span>
-            </button>
-          ))}
-        </div>
-      )}
+        {/* Device selector */}
+        <DeviceSelector
+          devices={devices}
+          selected={selDev}
+          onSelect={setSelDev}
+        />
 
-      {/* Stat cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard
-          label="Temperature"
-          value={latest?.temp_c}
-          unit="°C"
-          sub={latest
-              ? `${formatTime(latest.receivedAt)} BD · ${timeAgo(latest.receivedAt)}`
-              : 'Waiting...'}
-        />
-        <StatCard
-          label="Humidity"
-          value={latest?.humidity}
-          unit="%"
-          sub={latest
-            ? `${formatTime(latest.receivedAt)} BD · ${timeAgo(latest.receivedAt)}`
-            : 'Waiting...'}
-        />
-        <StatCard
-          label="Heat index"
-          value={latest?.heat_index}
-          unit="°C"
-          sub="Feels like"
-          subColor={tc.muted}
-        />
-        <StatCard
-          label="Uptime"
-          value={latest ? Math.floor(latest.uptime_ms / 60000) : '—'}
-          unit="min"
-          sub={`Device: ${selected ?? '—'}`}
-          subColor={tc.muted}
-        />
-      </div>
-     <div className='grid grid-cols-2 md:grid-cols-4 gap-4'>
-      <CircularGauge value={latest?.temp_c} label={"Temperatur"} unit={"C"} max={50}/>
-     <CircularGauge value={latest?.humidity} label={"Humidity"} unit={"%"}/>
-     <CircularGauge value={latest?.voltage} label={"Voltage"} unit={"V"} max={300} />
-     <CircularGauge value={latest?.frequency} label={"Frequency"} unit={"Hz"} max={60} />
-     </div>
-
-
-         {/* {selected && (
-          <SensorGauges
-            temp={latest?.temp_c}
-            hum={latest?.humidity}
+        {/* ── Bento row 1: Primary metrics ── */}
+        <div className="grid grid-cols-4 lg:grid-cols-6 md:grid-cols-4 gap-3">
+          <PrimaryCard
+            label="Active power"
+            value={latest?.power != null ? (latest.power / 1000).toFixed(2) : '—'}
+            unit="kW"
+            sub={fmtPower(latest?.power)}
+            sparkData={history.map(r => r.power)}
+            sparkCssVar="--color-power"
           />
-        ) || <p className={`text-sm ${tc.muted} text-center py-4`}>
-          Select a device to view gauges
-        </p>}
-        {!latest && <SensorGauges 
-                      temp={0} 
-                      hum={0}
-                      />
-        } */}
-  
+          <PrimaryCard
+            label="Energy consumed"
+            value={latest?.energy != null ? Number(latest.energy).toFixed(3) : '—'}
+            unit="kWh"
+            sub="Today cumulative"
+            sparkData={history.map(r => r.energy)}
+            sparkCssVar="--color-energy"
+          />
+          <PrimaryCard
+            label="Voltage"
+            value={latest?.voltage != null ? Number(latest.voltage).toFixed(1) : '—'}
+            unit="V"
+            sub={vstat.label}
+            subStyle={{ color: vstat.ok ? 'var(--color-energy)' : '#f87171' }}
+            sparkData={history.map(r => r.voltage)}
+            sparkCssVar="--color-voltage"
+          />
+        
 
-      {/* Chart */}
-      <SensorChart
-        data={readings}
-        title={`Sensor trend — ${selected ?? 'select a device'} (last 30 readings)`}
-      />
+        {/* ── Bento row 2: Secondary metrics ── */}
+     
+          <SecondaryCard
+            label="Current"
+            value={fmtCurrent(latest?.current)}
+            unit="A"
+            gaugePct={(latest?.current ?? 0) / 1 * 100}
+            gaugeCssVar="--color-current"
+            gaugeMin="0 A"
+            gaugeMax="1 A"
+          />
+          <PFGauge value={latest?.pf} />
+          <SecondaryCard
+            label="Frequency"
+            value={fmtFreq(latest?.frequency)}
+            unit="Hz"
+            gaugePct={((latest?.frequency ?? 49) - 49) / 1.2 * 100}
+            gaugeCssVar="--color-freq"
+            gaugeMin="49 Hz"
+            gaugeMax="50.2 Hz"
+          />
+        </div>
 
-    {readingDayAvg && (
-      <SensorDailyAvgChart
-        data={readingDayAvg}
-        title={`Daily average — ${selected ?? 'select a device'} (last 7 days)`}
-      />
-    ) || <p className={`text-sm ${tc.muted} text-center py-4`}>
-          Loading daily averages...
-        </p>}
-
-      {console.log('readingDayAvg:', readingDayAvg)}
-      {console.log('readings:', readings)}
-      
-
-      {/* Device list */}
-      <div className={`${tc.card} p-5`}>
-        <p className={`text-sm font-medium mb-4 ${tc.accent}`}>All devices</p>
-        <div className="divide-y divide-transparent space-y-2">
-          {devices.map(d => (
-            <div
-              key={d.device_id}
-              onClick={() => setSelected(d.device_id)}
-              className={`flex items-center justify-between p-3 rounded-lg cursor-pointer
-                border ${tc.border} ${tc.cardHover}
-                ${selected === d.device_id ? tc.active : ''}`}
-            >
-              <div>
-                <p className="text-sm font-medium">{d.name || d.device_id}</p>
-                <p className={`text-xs ${tc.muted}`}>
-                  {d.location} · last seen {d.lastSeen
-                    ? new Date(d.lastSeen).toLocaleTimeString()
-                    : 'never'}
-                </p>
-              </div>
-              <span className={`text-xs px-2 py-0.5 rounded-full
-                ${d.status === 'online' ? tc.badge : tc.badgeOff}`}>
-                {d.status}
-              </span>
+        {/* ── Ambient ── */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {[
+            { label: 'Temperature', value: `${latest?.temp_c ?? '—'}°C`,  cssVar: '--color-temp' },
+            { label: 'Humidity',    value: `${latest?.humidity ?? '—'}%`,  cssVar: '--color-hum'  },
+            { label: 'Heat index',  value: `${latest?.heat_index ?? '—'}°C`, cssVar: '--color-temp' },
+            { label: 'Last update', value: latest ? timeAgo(latest.receivedAt) : '—', cssVar: null },
+          ].map(m => (
+            <div key={m.label} className={`${tc.card} ${tc.cardHover} p-4`}>
+              <p className={tc.label}>{m.label}</p>
+              <p className="text-xl font-medium mt-1"
+                style={m.cssVar ? { color: `var(${m.cssVar})` } : {}}>
+                {m.value}
+              </p>
             </div>
           ))}
-          {devices.length === 0 && (
-            <p className={`text-sm ${tc.muted} text-center py-4`}>
-              No devices registered yet
-            </p>
-          )}
         </div>
-      </div>
 
+        {/* ── Dual axis + Uptime ── */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <DualAxisChart history={history} />
+          <UptimeChart   data={uptime} />
+        </div>
+
+        {/* ── Heatmap ── */}
+        <EnergyHeatmap data={heatmap} />
+
+        {/* ── Consumption ── */}
+        <ConsumptionChart deviceId={selDev} />
+
+      </div>
     </div>
   )
 }

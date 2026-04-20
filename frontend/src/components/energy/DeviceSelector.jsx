@@ -20,7 +20,7 @@ export default function DeviceSelector({ devices, selected, onSelect }) {
           <span className={`w-1.5 h-1.5 rounded-full inline-block
             ${d.status === 'online' ? 'bg-green-400' : 'bg-red-400'}`} />
           <span>{d.name || d.device_id}</span>
-          <span className="opacity-50">{d.location}</span>
+          {/* <span className="opacity-50">{d.location}</span> */}
           <span className={`px-1.5 py-0.5 rounded-full text-xs
             ${d.status === 'online' ? tc.badge : tc.badgeOff}`}>
             {d.status === 'online' ? timeAgo(d.lastSeen) : 'offline'}

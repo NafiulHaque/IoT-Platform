@@ -7,13 +7,13 @@ export default function Sidebar({ onClose }) {
 
   const NAV = [
     { to: '/dashboard', label: 'Dashboard', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
-    {
-      to: '/energy/esp32_01',
-      label: 'Energy',
-      icon: 'M13 10V3L4 14h7v7l9-11h-7z'
-    },
     { to: '/devices', label: 'Devices', icon: 'M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2v-4M9 21H5a2 2 0 01-2-2v-4m0 0h18' },
     { to: '/readings', label: 'Readings', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
+     {
+      to: '/tempanalysis',
+      label: 'Temp Analysis',
+      icon: 'M12 2v2M12 8a4 4 0 0 0-1.645 7.647M2 12h2M20 14.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0zm-15.07-9.61 1.41 1.41m1.41 12.73-1.41 1.41'
+    },
     { to: '/alerts', label: 'Alerts', icon: 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9' },
     ...(user?.role === 'admin' ? [{
       to: '/users', label: 'Users',

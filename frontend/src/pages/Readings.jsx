@@ -36,9 +36,9 @@ export default function Readings() {
   }, [selected])
 
   const exportCSV = () => {
-    const header = 'device_id,temp_c,humidity,heat_index,uptime_ms,receivedAt'
+    const header = 'device_id,Voltage (V),Current (A),Power (W),Energy (kWh),Freq (Hz),PF,Temp °C,Hum %,Heat index,Uptime (min),Received AT';
     const rows   = readings.map(r =>
-      `${r.device_id},${r.temp_c},${r.humidity},${r.heat_index},${r.uptime_ms},${r.receivedAt}`
+      `${r.device_id},${r.voltage},${r.current},${r.power},${r.energy},${r.frequency},${r.pf},${r.temp_c},${r.humidity},${r.heat_index},${r.uptime_ms},${r.receivedAt}`
     )
     const blob = new Blob([[header, ...rows].join('\n')], { type: 'text/csv' })
     const url  = URL.createObjectURL(blob)
@@ -64,7 +64,7 @@ export default function Readings() {
   const totalPages = Math.ceil(filtered.length / PER_PAGE)
   const chartData  = [...readings].reverse().slice(-30)
 
-  const COLS = ['Time', 'Temp °C', 'Humidity %', 'Heat index', 'Uptime (min)']
+  const COLS = ['Time', 'Volt (V)', 'Current (A)', 'Power (W)', 'Energy (kWh)', 'Freq (Hz)', 'PF', 'Temp °C', 'Hum %', 'Heat index', 'Uptime (min)']
 
   return (
     <div className="space-y-6">
@@ -162,6 +162,30 @@ export default function Readings() {
                     ${i % 2 === 0 ? '' : 'bg-white/[0.01]'}`}>
                     <td className={`py-2.5 pr-4 text-xs ${tc.muted} whitespace-nowrap`}>
                       {formatDateTime(r.receivedAt)}
+                    </td>
+                    <td className={`py-2.5 pr-4 font-mono text-xs
+                      ${r.voltage > 240 ? 'text-red-400' : r.voltage < 220 ? 'text-blue-400' : ''}`}>
+                      {r.voltage}
+                    </td>
+                    <td className={`py-2.5 pr-4 font-mono text-xs
+                      ${r.current > 240 ? 'text-red-400' : r.current < 220 ? 'text-blue-400' : ''}`}>
+                      {r.current}
+                    </td>
+                    <td className={`py-2.5 pr-4 font-mono text-xs
+                      ${r.power > 240 ? 'text-red-400' : r.power < 220 ? 'text-blue-400' : ''}`}>
+                      {r.power}
+                    </td>
+                    <td className={`py-2.5 pr-4 font-mono text-xs
+                      ${r.energy > 240 ? 'text-red-400' : r.energy < 220 ? 'text-blue-400' : ''}`}>
+                      {r.energy}
+                    </td>
+                    <td className={`py-2.5 pr-4 font-mono text-xs
+                      ${r.frequency > 50.2 ? 'text-red-400' : r.frequency < 48 ? 'text-blue-400' : ''}`}>
+                      {r.frequency}
+                    </td>
+                    <td className={`py-2.5 pr-4 font-mono text-xs
+                      ${r.pf > 0.8 ? 'text-green-400' : r.pf < 0.2 ? 'text-red-400' : ''}`}>
+                      {r.pf}
                     </td>
                     <td className={`py-2.5 pr-4 font-mono text-xs
                       ${r.temp_c > 40 ? 'text-red-400' : r.temp_c < 15 ? 'text-blue-400' : ''}`}>
