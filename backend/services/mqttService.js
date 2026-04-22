@@ -37,7 +37,6 @@ const connectMQTT = (socketIO) => {
         temp_c:     payload.temp_c,
         humidity:   payload.humidity,
         heat_index: payload.heat_index,
-        rssi:       payload.rssi,
         uptime_ms:  payload.uptime_ms,
         voltage:    payload.voltage,
         current:    payload.current,
@@ -53,7 +52,10 @@ const connectMQTT = (socketIO) => {
       // Update device last seen + status
       await Device.findOneAndUpdate(
         { device_id: payload.device_id },
-        { status: 'online', lastSeen: new Date() },
+        { status: 'online',
+          lastSeen: new Date(),
+          rssi: payload.rssi || null, // Update RSSI if provided
+        },
         { upsert: true }
       );
 

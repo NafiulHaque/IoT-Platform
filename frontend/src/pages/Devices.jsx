@@ -1,13 +1,55 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useThemeClasses } from '../context/ThemeContext'
+import { useThemeClasses,useChartColors } from '../context/ThemeContext'
 import api from '../api/axios'
 import {formatDateTime,timeAgo} from '../utils/time'
 
 const EMPTY = { device_id: '', name: '', location: '', topic: '' }
 
+
+// ── helpers ──────────────────────────────────────────────────────────────────
+
+const STATUS_ORDER = { online: 0, offline: 1 }
+
+function sortDevices(devices) {
+  return [...devices].sort((a, b) => {
+    const so = (STATUS_ORDER[a.status] ?? 1) - (STATUS_ORDER[b.status] ?? 1)
+    if (so !== 0) return so
+    // within same status: sort by lastSeen descending (most recent first)
+    return new Date(b.lastSeen ?? 0) - new Date(a.lastSeen ?? 0)
+  })
+}
+
+// ── sub-components ────────────────────────────────────────────────────────────
+
+function StatusDot({ status, pulse = true }) {
+  const isOnline = status === 'online'
+  return (
+    <span className="relative flex-shrink-0" style={{ width: 8, height: 8 }}>
+      {isOnline && pulse && (
+        <span
+          className="absolute inset-0 rounded-full animate-ping"
+          style={{ background: '#4ade80', opacity: 0.4 }}
+        />
+      )}
+      <span
+        className="relative block rounded-full"
+        style={{
+          width: 8, height: 8,
+          background: isOnline ? '#4ade80' : '#f87171',
+        }}
+      />
+    </span>
+  )
+}
+
+
+
 export default function Devices() {
+
+
   const tc       = useThemeClasses()
+  const cc       =useChartColors()
   const navigate = useNavigate()
 
   const [devices,  setDevices]  = useState([])
@@ -18,8 +60,59 @@ export default function Devices() {
   const [loading,  setLoading]  = useState(false)
   const [deleting, setDeleting] = useState(null)
 
+
   const load = () => api.get('/devices').then(r => setDevices(r.data))
   useEffect(() => { load() }, [])
+
+
+ const isOnline = devices.status === 'online'
+
+ function sigBars(rssi) {
+  if (!rssi || rssi === 0) return 0
+  if (rssi >= -50) return 4
+  if (rssi >= -60) return 3
+  if (rssi >= -70) return 2
+  return 1
+}
+
+// ── SignalBars ────────────────────────────────────────────────────────────────
+
+function SignalBars({ rssi, online, cc }) {
+  if (!online) return null
+  const bars = sigBars(rssi)
+  return (
+    <div className="flex items-end gap-px">
+      {[1, 2, 3, 4].map(b => (
+        <div
+          key={b}
+          className="w-1 rounded-sm"
+          style={{
+            height:     b * 3 + 2,
+            background: b <= bars ? cc.energy : 'var(--color-dark-border, #334155)',
+            opacity:    b <= bars ? 1 : 0.3,
+          }}
+        />
+      ))}
+    </div>
+  )
+}
+ 
+function OfflineStatus({ lastSeen, tc }) {
+  const isOffline = true
+  return (
+    <span className={`text-xs ${tc.muted}`}
+      style={{
+       display: 'inline-block',
+        padding: '0.125rem 0.375rem',
+        borderRadius: 9999,
+           borderColor: isOffline ? '#fecaca' : 'inherit',
+      }}
+    >
+      {timeAgo(lastSeen)}
+    </span>
+  )
+}
+
 
   const openAdd = () => {
     setEditing(null)
@@ -94,11 +187,16 @@ export default function Devices() {
                 <p className="text-sm font-semibold">{d.name}</p>
                 <p className={`text-xs mt-0.5 font-mono ${tc.muted}`}>{d.device_id}</p>
               </div>
-              <span className={`text-xs px-2 py-0.5 rounded-full flex-shrink-0
-                ${d.status === 'online' ? tc.badge : tc.badgeOff}`}>
-                {d.status}
-              </span>
-            </div>
+              <div className="flex items-center gap-2">
+                <StatusDot status={d.status} />
+                <span className={`text-xs ${tc.muted}`}>{d.status || 'unknown'}</span>
+              </div>
+              <div className="flex items-end gap-0.5">
+               {d.status=== 'online'?<SignalBars rssi={d.rssi} online={d.status === 'online'} cc={cc} />: <OfflineStatus lastSeen={d.lastSeen} tc={tc} />}
+                 
+              </div>
+             </div> 
+  
 
             {/* Info rows */}
             <div className="space-y-1.5">

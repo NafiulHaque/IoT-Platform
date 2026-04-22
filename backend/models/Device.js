@@ -7,6 +7,7 @@ const DeviceSchema = new mongoose.Schema({
   topic:       { type: String, required: true },               // MQTT topic
   status:      { type: String, enum: ['online', 'offline'], default: 'offline' },
   lastSeen:    { type: Date },
+  rssi:          { type: Number }, // Signal strength
   createdAt:   { type: Date, default: Date.now }
 });
 
