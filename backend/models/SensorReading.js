@@ -7,6 +7,7 @@ const SensorReadingSchema = new mongoose.Schema({
   humidity:   { type: Number },
   heat_index: { type: Number },
   uptime_ms:  { type: Number },
+  rssi:      { type: Number},
   //electrical
   voltage:    { type: Number },
   current:    { type: Number },

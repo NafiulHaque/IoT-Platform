@@ -12,7 +12,7 @@ import Readings           from './pages/Readings'
 import Alerts             from './pages/Alerts'
 import Users              from './pages/Users'
 import Settings           from './pages/Settings'
-import EnergyDashboard    from './pages/EnergyDashboard'
+// import EnergyDashboard    from './pages/EnergyDashboard'
 import TemperatureAnalysis from './pages/TempAnalysis'
 
 export default function App() {

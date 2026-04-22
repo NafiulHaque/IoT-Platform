@@ -218,6 +218,7 @@ void connectMQTT() {
 void publishDHT() {                     // ★ NEW — replaces old publishSensorData()
   float temperature = dht.readTemperature();   // Celsius by default
   float humidity    = dht.readHumidity();
+  int   rssi        = WiFi.RSSI(); 
 
   // DHT11 sometimes returns NaN on bad reads — always validate
   if (isnan(temperature) || isnan(humidity)) {
@@ -233,6 +234,7 @@ void publishDHT() {                     // ★ NEW — replaces old publishSenso
   doc["humidity"]   = serialized(String(humidity, 1));
   doc["heat_index"] = serialized(String(dht.computeHeatIndex(temperature, humidity, false), 1));
   doc["uptime_ms"]  = millis();
+  doc["rssi"] = serialized(String(rssi));
 
   char payload[200];
   serializeJson(doc, payload);

@@ -37,6 +37,7 @@ const connectMQTT = (socketIO) => {
         temp_c:     payload.temp_c,
         humidity:   payload.humidity,
         heat_index: payload.heat_index,
+        rssi:       payload.rssi,
         uptime_ms:  payload.uptime_ms,
         voltage:    payload.voltage,
         current:    payload.current,

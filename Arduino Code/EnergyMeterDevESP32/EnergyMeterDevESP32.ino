@@ -226,7 +226,7 @@ void connectMQTT() {
 void publishData() {                     // ★ NEW — replaces old publishSensorData()
   float temperature = dht.readTemperature();   // Celsius by default
   float humidity    = dht.readHumidity();
-
+  int   rssi        = WiFi.RSSI(); 
     // Read parameters of pzem
   float voltage = pzem.voltage();
   float current = pzem.current();
@@ -262,7 +262,7 @@ void publishData() {                     // ★ NEW — replaces old publishSens
   doc["energy"] = serialized(String(energy, 3));
   doc["frequency"] = serialized(String(frequency));
   doc["pf"] = serialized(String(pf));
-  
+  doc["rssi"] = serialized(String(rssi));
 
   char payload[200];
   serializeJson(doc, payload);
@@ -289,8 +289,8 @@ void setup() {
 
   Serial.println("\n\n=== ESP32 DHT11 IoT Node ===");
 
-  dht.begin();                          // ★ NEW — initialize DHT sensor
-  delay(2000);                          // ★ NEW — DHT11 needs 2s after power-on to stabilize
+  dht.begin();                         // — initialize DHT sensor
+  delay(2000);                       // — DHT11 needs 2s after power-on to stabilize
 
   connectWiFi();
   connectMQTT();
@@ -306,6 +306,6 @@ void loop() {
   unsigned long now = millis();
   if (now - lastPublish >= publishInterval) {
     lastPublish = now;
-    publishData();                       // ★ NEW
+    publishData();                    
   }
 }

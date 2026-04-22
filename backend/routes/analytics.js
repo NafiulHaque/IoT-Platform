@@ -5,29 +5,84 @@ const { protect }   = require('../middleware/authMiddleware')
 const router = express.Router()
 
 // GET /api/analytics/:device_id/heatmap
-// Returns kWh per hour per day-of-week for the last 4 weeks
 router.get('/:device_id/heatmap', protect, async (req, res) => {
   try {
+    const BD_OFFSET_MS = 6 * 60 * 60 * 1000    // UTC+6
     const since = new Date(Date.now() - 28 * 24 * 3600 * 1000)
-    const readings = await SensorReading.find({
-      device_id:  req.params.device_id,
-      receivedAt: { $gte: since }
-    }).select('power receivedAt')
 
-    // Build a 7×24 grid (day × hour) summing kWh
-    const grid = Array.from({ length: 7 }, () => Array(24).fill(0))
+    const pipeline = [
+      {
+        $match: {
+          device_id:  req.params.device_id,
+          receivedAt: { $gte: since }
+        }
+      },
+      {
+        // Shift UTC → BST before extracting day/hour
+        $addFields: {
+          bstDate: {
+            $dateAdd: {
+              startDate: '$receivedAt',
+              unit:      'millisecond',
+              amount:    BD_OFFSET_MS
+            }
+          }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            // dayOfWeek: 1=Sun,2=Mon…7=Sat in MongoDB
+            // We remap to 0=Mon…6=Sun in the response
+            dow:  { $dayOfWeek: '$bstDate' },
+            hour: { $hour:      '$bstDate' },
+          },
+          totalKwh: {
+            $sum: {
+              $multiply: [
+                { $ifNull: ['$power', 0] },
+                // 10s publish interval → kWh per reading
+                { $literal: 10 / 3600 / 1000 }
+              ]
+            }
+          },
+          count: { $sum: 1 }
+        }
+      }
+    ]
+
+    const rows = await SensorReading.aggregate(pipeline)
+
+    // Build 7×24 grid indexed [0=Mon … 6=Sun][0=00:00 … 23:00] in BST
+    // MongoDB dow: 1=Sun,2=Mon,3=Tue,4=Wed,5=Thu,6=Fri,7=Sat
+    // Our grid:    0=Mon,1=Tue,2=Wed,3=Thu,4=Fri,5=Sat,6=Sun
+    const mongoToGrid = { 2:0, 3:1, 4:2, 5:3, 6:4, 7:5, 1:6 }
+
+    const grid  = Array.from({ length: 7 }, () => Array(24).fill(0))
     const count = Array.from({ length: 7 }, () => Array(24).fill(0))
 
-    readings.forEach(r => {
-      const d = new Date(r.receivedAt)
-      const dayBD  = new Date(d.getTime() + 6*3600*1000).getDay()   // 0=Sun, BD adjusted
-      const hourBD = new Date(d.getTime() + 6*3600*1000).getHours()
-      const kwh = (r.power || 0) * (10 / 3600 / 1000)               // assuming 10s intervals
-      grid[dayBD][hourBD] += kwh
-      count[dayBD][hourBD]++
+    rows.forEach(r => {
+      const gridDay = mongoToGrid[r._id.dow]
+      const hour    = r._id.hour                  // already BST
+      if (gridDay !== undefined && hour >= 0 && hour < 24) {
+        grid[gridDay][hour]  += r.totalKwh
+        count[gridDay][hour] += r.count
+      }
     })
 
-    res.json({ grid, count })
+    // Round kWh to 3 decimal places
+    const gridRounded = grid.map(row =>
+      row.map(v => Math.round(v * 1000) / 1000)
+    )
+
+    res.json({
+      grid:  gridRounded,
+      count,
+      days:  ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],
+      hours: Array.from({ length: 24 }, (_, i) => i),
+      timezone: 'Asia/Dhaka (BST UTC+6)',
+      since: since.toISOString(),
+    })
   } catch (err) {
     res.status(500).json({ message: err.message })
   }

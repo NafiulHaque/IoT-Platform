@@ -72,20 +72,29 @@ useEffect(() => {
 }, [selDev])
 
 
-  // Load analytics when device changes
-  const loadDevice = useCallback(async (id) => {
-    if (!id) return
+ // Replace the loadDevice function with this:
+const loadDevice = useCallback(async (id) => {
+  if (!id) return
+  try {
     const [sum, hist, hm, up] = await Promise.all([
       getSummary(id),
       getHistory(id, 30),
-      getHeatmap(id),
-      getUptime(id, 24),
+      getHeatmap(id),      // now returns BST-correct grid
+      getUptime(id),       // now returns full 0–23 BST array
     ])
+
     setLatest(sum.latest)
-    setHistory([...hist].sort((a, b) => new Date(a.receivedAt) - new Date(b.receivedAt)))
+    setHistory(
+      [...hist].sort((a, b) =>
+        new Date(a.receivedAt) - new Date(b.receivedAt)
+      )
+    )
     setHeatmap(hm)
     setUptime(up)
-  }, [])
+  } catch (err) {
+    console.error('loadDevice error:', err)
+  }
+}, [])
 
   useEffect(() => { if (selDev) loadDevice(selDev) }, [selDev])
 
