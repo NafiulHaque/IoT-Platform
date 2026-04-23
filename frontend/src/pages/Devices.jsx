@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useThemeClasses,useChartColors } from '../context/ThemeContext'
 import api from '../api/axios'
 import {formatDateTime,timeAgo} from '../utils/time'
-
+import DeviceSelector from '../components/energy/DeviceSelector'
 const EMPTY = { device_id: '', name: '', location: '', topic: '' }
 
 
@@ -47,7 +47,6 @@ function StatusDot({ status, pulse = true }) {
 
 export default function Devices() {
 
-
   const tc       = useThemeClasses()
   const cc       =useChartColors()
   const navigate = useNavigate()
@@ -64,6 +63,24 @@ export default function Devices() {
   const load = () => api.get('/devices').then(r => setDevices(r.data))
   useEffect(() => { load() }, [])
 
+
+  //------------------------------------
+const [search, setSearch] = useState('')
+ const sorted   = useMemo(() => sortDevices(devices), [devices])
+  const filtered = useMemo(() => {
+    if (!search.trim()) return sorted
+    const q = search.toLowerCase()
+    return sorted.filter(d =>
+      d.name?.toLowerCase().includes(q)      ||
+      d.device_id?.toLowerCase().includes(q) ||
+      d.location?.toLowerCase().includes(q)
+    )
+  }, [sorted, search])
+
+  const onlineCount  = devices.filter(d => d.status === 'online').length
+  const offlineCount = devices.length - onlineCount
+
+//----------------------------------
 
  const isOnline = devices.status === 'online'
 
@@ -105,6 +122,7 @@ function OfflineStatus({ lastSeen, tc }) {
        display: 'inline-block',
         padding: '0.125rem 0.375rem',
         borderRadius: 9999,
+        color: isOffline ? '#f87171' : 'inherit',
            borderColor: isOffline ? '#fecaca' : 'inherit',
       }}
     >
@@ -176,9 +194,45 @@ function OfflineStatus({ lastSeen, tc }) {
         </button>
       </div>
 
+      <div className='flex items-center justify-between'>
+          {/* left: counts */}
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <span className={`inline-flex items-center gap-1.5 text-xs
+                            px-2 py-0.5 rounded-full ${tc.badge}`}>
+            <span className="w-1.5 h-1.5 rounded-full bg-green-400
+                             inline-block animate-pulse" />
+            {onlineCount} online
+          </span>
+          {offlineCount > 0 && (
+            <span className={`inline-flex items-center gap-1.5 text-xs
+                              px-2 py-0.5 rounded-full ${tc.badgeOff}`}>
+              <span className="w-1.5 h-1.5 rounded-full bg-red-400 inline-block" />
+              {offlineCount} offline
+            </span>
+          )}
+        </div>
+        <div className="relative">
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search devices..."
+            className={`input-field ${tc.input} pl-9`}
+          />
+          <svg
+            className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+        </div>
+      </div>
+     {/* {<DeviceSelector devices={filtered} tc={tc} />} */}
+
       {/* Device grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {devices.map(d => (
+        {filtered.map(d => (
           <div key={d._id} className={`${tc.card} ${tc.cardHover} p-5 flex flex-col gap-3`}>
 
             {/* Top row */}
@@ -204,7 +258,7 @@ function OfflineStatus({ lastSeen, tc }) {
               <Row label="Topic"    value={d.topic}           tc={tc} mono />
               <Row label="Last seen"
                 value={d.lastSeen
-                  ? `${timeAgo(d.lastSeen)}.${formatDateTime(d.lastSeen)}`
+                  ? `${timeAgo(d.lastSeen)} ${formatDateTime(d.lastSeen)}`
                   : 'Never'}
                 tc={tc}
               />
@@ -238,9 +292,9 @@ function OfflineStatus({ lastSeen, tc }) {
           </div>
         ))}
 
-        {devices.length === 0 && (
+        {filtered.length === 0 && (
           <div className={`col-span-3 ${tc.card} p-12 text-center`}>
-            <p className={`text-sm ${tc.muted}`}>No devices yet. Add your first ESP32.</p>
+            <p className={`text-sm ${tc.muted}`}>No devices found.</p>
           </div>
         )}
       </div>

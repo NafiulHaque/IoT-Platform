@@ -359,7 +359,7 @@ function DeviceRow({ device, isSelected, onSelect, tc, cc }) {
 
 // ── Main export ───────────────────────────────────────────────────────────────
 
-export default function DeviceSelector({ devices = [], selected, onSelect }) {
+export default function DeviceSelector({ devices = [] }) {
   const tc             = useThemeClasses()
   const cc             = useChartColors()
   const [search, setSearch] = useState('')
@@ -397,8 +397,8 @@ export default function DeviceSelector({ devices = [], selected, onSelect }) {
       <div className="mb-4">
         <DeviceDrawer
           devices={sorted}
-          selected={selected}
-          onSelect={onSelect}
+          selected={null}
+          onSelect={() => {}}
           tc={tc}
           cc={cc}
           search={search}
@@ -415,8 +415,8 @@ export default function DeviceSelector({ devices = [], selected, onSelect }) {
         <DeviceChip
           key={d.device_id}
           device={d}
-          isSelected={selected === d.device_id}
-          onSelect={onSelect}
+          isSelected={null}
+          onSelect={() => {}}
           tc={tc}
         />
       ))}
