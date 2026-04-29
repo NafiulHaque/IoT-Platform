@@ -21,6 +21,15 @@ function sigBars(rssi) {
   return 1
 }
 
+//select latest online device on initial load
+const selectLatestOnlineDevice = (devices) => {
+  const onlineDevices = devices.filter(d => d.status === 'online')
+  return onlineDevices.length > 0 ? onlineDevices[0].device_id : null
+}
+
+
+
+
 // ── StatusDot ─────────────────────────────────────────────────────────────────
 
 function StatusDot({ status, size = 8 }) {
@@ -143,7 +152,7 @@ function TriggerButton({ device, onClick, tc }) {
 const FILTERS = [
   { key: 'all',     label: 'All' },
   { key: 'online',  label: 'Active' },
-  { key: 'warning', label: 'Warning' },
+  // { key: 'warning', label: 'Warning' },
   { key: 'offline', label: 'Offline' },
 ]
 
@@ -531,6 +540,15 @@ export default function DeviceSwitcher({ devices = [], selected, onSelect }) {
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [])
+
+  useEffect(() => {
+    if (!selected && devices.length > 0) {
+      const latestOnlineDevice = selectLatestOnlineDevice(devices)
+      if (latestOnlineDevice) {
+        onSelect(latestOnlineDevice)
+      }
+    }
+  }, [devices, selected, onSelect])
 
   return (
     <>

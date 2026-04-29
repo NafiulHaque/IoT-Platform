@@ -3,6 +3,7 @@ import { useThemeClasses } from '../context/ThemeContext'
 import api from '../api/axios'
 import SensorChart from '../components/SensorChart'
 import { formatDateTime } from '../utils/time'
+import DeviceSwitcher from '../components/energy/DeviceSwitcher'
 
 const PER_PAGE = 15
 
@@ -16,10 +17,23 @@ export default function Readings() {
   const [page,      setPage]      = useState(1)
   const [search,    setSearch]    = useState('')
 
+
+// Load device list and select latest online device
+
+  const selectLatestOnlineDevice = (devices) => {
+    const onlineDevices = devices.filter(d => d.status === 'online')
+    return onlineDevices.length > 0 ? onlineDevices[0].device_id : null
+  }
+
   useEffect(() => {
     api.get('/devices').then(r => {
       setDevices(r.data)
-      if (r.data.length > 0) setSelected(r.data[0].device_id)
+      if (r.data.length > 0) {
+          const latestOnlineDevice = selectLatestOnlineDevice(r.data)
+          if (latestOnlineDevice) {
+            setSelected(latestOnlineDevice)
+          }
+        }
     })
   }, [])
 
@@ -47,15 +61,7 @@ export default function Readings() {
     URL.revokeObjectURL(url)
   }
 
-  // Stats summary
-  const temps = readings.map(r => r.temp_c).filter(Boolean)
-  const hums  = readings.map(r => r.humidity).filter(Boolean)
-  const stats = {
-    tempAvg: temps.length ? (temps.reduce((a, b) => a + b, 0) / temps.length).toFixed(1) : '—',
-    tempMax: temps.length ? Math.max(...temps).toFixed(1) : '—',
-    tempMin: temps.length ? Math.min(...temps).toFixed(1) : '—',
-    humAvg:  hums.length  ? (hums.reduce((a, b) => a + b, 0) / hums.length).toFixed(1) : '—',
-  }
+
 
   const filtered = readings.filter(r =>
     !search || new Date(r.receivedAt).toLocaleString().includes(search)
@@ -86,44 +92,13 @@ export default function Readings() {
       </div>
 
       {/* Device tabs */}
-      <div className={`flex flex-wrap gap-2 pb-4 border-b ${tc.border}`}>
-        {devices.map(d => (
-          <button
-            key={d.device_id}
-            onClick={() => setSelected(d.device_id)}
-            className={`px-4 py-1.5 rounded-lg text-xs font-medium border transition-all
-              ${selected === d.device_id
-                ? `${tc.btn} border-transparent`
-                : `${tc.border} ${tc.muted}`}`}
-          >
-            {d.name || d.device_id}
-          </button>
-        ))}
+      <div className="flex flex-wrap gap-2">
+       <DeviceSwitcher
+                 devices={devices}
+                 selected={selected}
+                 onSelect={setSelected}
+               />
       </div>
-
-      {/* Summary stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          { label: 'Avg temperature', value: stats.tempAvg, unit: '°C' },
-          { label: 'Max temperature', value: stats.tempMax, unit: '°C' },
-          { label: 'Min temperature', value: stats.tempMin, unit: '°C' },
-          { label: 'Avg humidity',    value: stats.humAvg,  unit: '%' },
-        ].map(s => (
-          <div key={s.label} className={`${tc.card} p-4`}>
-            <p className={`text-xs ${tc.muted} mb-1`}>{s.label}</p>
-            <p className="text-2xl font-semibold">
-              {s.value}
-              <span className={`text-sm font-normal ml-1 ${tc.muted}`}>{s.unit}</span>
-            </p>
-          </div>
-        ))}
-      </div>
-
-      {/* Chart */}
-      <SensorChart
-        data={chartData}
-        title={`Last 30 readings — ${selected}`}
-      />
 
       {/* Table */}
       <div className={`${tc.card} p-5`}>

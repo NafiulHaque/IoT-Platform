@@ -24,6 +24,17 @@ export default function Dashboard() {
   const [latest,       setLatest]       = useState(null)
   const [liveStatus,   setLiveStatus]   = useState('connecting')
 
+  // Stats summary
+  const temps = readings.map(r => r.temp_c).filter(Boolean)
+  const hums  = readings.map(r => r.humidity).filter(Boolean)
+  const stats = {
+    tempAvg: temps.length ? (temps.reduce((a, b) => a + b, 0) / temps.length).toFixed(1) : '—',
+    tempMax: temps.length ? Math.max(...temps).toFixed(1) : '—',
+    tempMin: temps.length ? Math.min(...temps).toFixed(1) : '—',
+    humAvg:  hums.length  ? (hums.reduce((a, b) => a + b, 0) / hums.length).toFixed(1) : '—',
+  }
+
+
   // Load devices
   useEffect(() => {
     api.get('/devices').then(r => {
@@ -152,6 +163,29 @@ export default function Dashboard() {
           subColor={tc.muted}
         />
       </div>
+
+
+
+      {/* Summary stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[
+          { label: 'Avg temperature', value: stats.tempAvg, unit: '°C' },
+          { label: 'Max temperature', value: stats.tempMax, unit: '°C' },
+          { label: 'Min temperature', value: stats.tempMin, unit: '°C' },
+          { label: 'Avg humidity',    value: stats.humAvg,  unit: '%' },
+        ].map(s => (
+          <div key={s.label} className={`${tc.card} p-4`}>
+            <p className={`text-xs ${tc.muted} mb-1`}>{s.label}</p>
+            <p className="text-2xl font-semibold">
+              {s.value}
+              <span className={`text-sm font-normal ml-1 ${tc.muted}`}>{s.unit}</span>
+            </p>
+          </div>
+        ))}
+      </div>
+
+
+
      <div className='grid grid-cols-2 md:grid-cols-4 gap-4'>
       <CircularGauge value={latest?.temp_c} label={"Temperatur"} unit={"C"} max={50}/>
      <CircularGauge value={latest?.humidity} label={"Humidity"} unit={"%"}/>

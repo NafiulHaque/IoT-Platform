@@ -51,12 +51,22 @@ export default function EnergyDashboard() {
     tick(); const id = setInterval(tick, 1000); return () => clearInterval(id)
   }, [])
 
-  // Load device list
+  // Load device list and select latest online device
+
+  const selectLatestOnlineDevice = (devices) => {
+    const onlineDevices = devices.filter(d => d.status === 'online')
+    return onlineDevices.length > 0 ? onlineDevices[0].device_id : null
+  }
   useEffect(() => {
     import('../api/axios').then(({ default: api }) =>
       api.get('/devices').then(r => {
         setDevices(r.data)
-        if (r.data.length > 0) setSelDev(r.data[0].device_id)
+        if (r.data.length > 0) {
+          const latestOnlineDevice = selectLatestOnlineDevice(r.data)
+          if (latestOnlineDevice) {
+            setSelDev(latestOnlineDevice)
+          }
+        }
       })
     )
   }, [])
@@ -102,17 +112,6 @@ export default function EnergyDashboard() {
 
   useEffect(() => { if (selDev) loadDevice(selDev) }, [selDev])
 
- //select latest online device on initial load
- useEffect(() => {
-  if (devices.length === 0) return
-
-  const lastOnlineDevice = [...devices]
-    .filter(d => d.status === 'online')
-    .sort((a, b) => new Date(b.lastSeen) - new Date(a.lastSeen))[0]
-  if (lastOnlineDevice) {
-    setSelDev(lastOnlineDevice.device_id)
-  }
- }, [devices])
 
   // Socket.IO live
   useEffect(() => {

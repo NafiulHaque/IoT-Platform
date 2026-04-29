@@ -5,7 +5,7 @@ import api from '../api/axios'
 import {formatDateTime,timeAgo} from '../utils/time'
 import DeviceSelector from '../components/energy/DeviceSelector'
 const EMPTY = { device_id: '', name: '', location: '', topic: '' }
-
+import { useAuth } from '../context/AuthContext'
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -177,6 +177,12 @@ function OfflineStatus({ lastSeen, tc }) {
       setDeleting(null)
     }
   }
+  
+  //---auth role check for admin-only
+ const { user } = useAuth();
+  const isAdmin = () => {   
+    return user?.role === 'admin'
+  }
 
   return (
     <div className="space-y-6">
@@ -189,9 +195,14 @@ function OfflineStatus({ lastSeen, tc }) {
             {devices.length} registered device{devices.length !== 1 ? 's' : ''}
           </p>
         </div>
-        <button onClick={openAdd} className={`btn-primary ${tc.btn} w-auto px-4 py-2 text-sm`}>
+      {isAdmin() && (
+        <button
+          onClick={openAdd}
+          className={`btn-primary ${tc.btn} w-auto px-4 py-2 text-sm`}
+        >
           + Add device
         </button>
+      )}
       </div>
 
       <div className='flex items-center justify-between'>
@@ -319,7 +330,7 @@ function OfflineStatus({ lastSeen, tc }) {
                 { key: 'device_id', label: 'Device ID',  placeholder: 'esp32_01', disabled: !!editing },
                 { key: 'name',      label: 'Name',        placeholder: 'Line 1 — Temp sensor' },
                 { key: 'location',  label: 'Location',    placeholder: 'Factory Line 1' },
-                { key: 'topic',     label: 'MQTT topic',  placeholder: 'factory/line1/esp32_01/dht' },
+                { key: 'topic',     label: 'MQTT topic',  placeholder: 'factory/line1/esp32_01/EM' },
               ].map(f => (
                 <div key={f.key}>
                   <label className={`block mb-1.5 ${tc.label}`}>{f.label}</label>
