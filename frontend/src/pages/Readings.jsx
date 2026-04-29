@@ -68,7 +68,7 @@ export default function Readings() {
   )
   const paginated  = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE)
   const totalPages = Math.ceil(filtered.length / PER_PAGE)
-  const chartData  = [...readings].reverse().slice(-30)
+ 
 
   const COLS = ['Time', 'Volt (V)', 'Current (A)', 'Power (W)', 'Energy (kWh)', 'Freq (Hz)', 'PF', 'Temp °C', 'Hum %', 'Heat index', 'Uptime (min)']
 
