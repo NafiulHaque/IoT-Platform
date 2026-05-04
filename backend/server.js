@@ -9,13 +9,41 @@ const { startOfflineDetector } = require('./services/offlineDetector');
 
 const app    = express();
 const server = http.createServer(app);
-const io     = new Server(server, {
-  cors: { origin: 'http://localhost:5173', credentials: true }
-});
+
+
+
+
+// ── Dynamic CORS for production ──
+const allowedOrigins = [
+  process.env.CLIENT_URL,          // your Vercel URL
+  'http://localhost:5173',          // local dev
+  'http://localhost:3000',
+].filter(Boolean)
+
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    // allow requests with no origin (mobile apps, Postman)
+    if (!origin) return callback(null, true)
+    if (allowedOrigins.includes(origin)) return callback(null, true)
+    callback(new Error('Not allowed by CORS'))
+  },
+  credentials: true,
+}
 
 // ── Middleware ──
-app.use(cors({ origin: 'http://localhost:5173', credentials: true }));
+app.use(cors(corsOptions));
 app.use(express.json());
+
+const io = new Server(server, {
+  cors: {
+    origin: allowedOrigins,
+    credentials: true,
+  },
+})
+
+// ── Health check endpoint — Railway needs this ──
+app.get('/health', (req, res) => res.json({ status: 'ok', uptime: process.uptime() }));
 
 // ── Routes ──
 app.use('/api/auth',     require('./routes/auth'));

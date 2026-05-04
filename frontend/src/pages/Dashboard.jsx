@@ -6,10 +6,10 @@ import {
 } from 'chart.js'
 import { useAuth } from '../context/AuthContext'
 import { useThemeClasses } from '../context/ThemeContext'
-import { formatTime, timeAgo } from '../utils/time'
+import {  timeAgo } from '../utils/time'
 import {
-  fmtPower, fmtEnergy, fmtVoltage, fmtCurrent,
-  fmtPF, fmtFreq, voltageStatus
+  fmtPower,  fmtCurrent,
+   fmtFreq, voltageStatus
 } from '../utils/energy'
 import { getSummary, getHistory, getHeatmap, getUptime } from '../api/energy'
 import PrimaryCard from '../components/energy/PrimaryCard'
@@ -115,7 +115,10 @@ export default function EnergyDashboard() {
 
   // Socket.IO live
   useEffect(() => {
-    socket = io('http://localhost:5000', { auth: { token } })
+    socket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000', { 
+      auth: { token },
+      transports:['websocket', 'polling'],
+    })
     socket.on('connect', () => setLive('live'))
     socket.on('disconnect', () => setLive('disconnected'))
     socket.on('sensor_update', ({ device_id, reading }) => {

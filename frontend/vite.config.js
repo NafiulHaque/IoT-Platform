@@ -9,6 +9,21 @@ export default defineConfig({
     tailwindcss(),
      
   ],
+  build:{
+    outDir: 'dist',
+    sourcemap: false,
+    chunkSizeWarningLimit: 1000,
+    rolldownOptions:{
+      output:{
+        manualChunks:{
+           vendor:  ['react', 'react-dom', 'react-router-dom'],
+          charts:  ['recharts', 'chart.js', 'react-chartjs-2', 'react-gauge-chart', 'react-is', 'prop-types'],
+          socket:  ['socket.io-client'],
+        }
+      }
+    }
+
+  },
   optimizeDeps:{
     include:[
       'react-gauge-chart',
