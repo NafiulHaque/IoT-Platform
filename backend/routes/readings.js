@@ -6,16 +6,23 @@ const router = express.Router();
 
 // GET /api/readings/:device_id — latest 100 readings
 router.get('/:device_id', protect, async (req, res) => {
+  const { device_id } = req.params
+
+  // Guard empty device_id
+  if (!device_id || device_id.trim() === '') {
+    return res.status(400).json({ message: 'device_id is required' })
+  }
+
   try {
     const readings = await SensorReading
-      .find({ device_id: req.params.device_id })
+      .find({ device_id })
       .sort({ receivedAt: -1 })
-      .limit(100);
-    res.json(readings);
+      .limit(100)
+    res.json(readings)
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: err.message })
   }
-});
+})
 
 // GET /api/readings/:device_id/latest — single latest reading
 router.get('/:device_id/latest', protect, async (req, res) => {

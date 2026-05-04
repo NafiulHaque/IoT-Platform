@@ -88,7 +88,10 @@ export default function EnergyDashboard() {
 
   // Replace the loadDevice function with this:
   const loadDevice = useCallback(async (id) => {
-    if (!id) return
+    if (!id || id.trim() === ''){
+      console.warn('loadDevice called with empty id')
+      return
+    } 
     try {
       const [sum, hist, hm, up] = await Promise.all([
         getSummary(id),
@@ -110,7 +113,7 @@ export default function EnergyDashboard() {
     }
   }, [])
 
-  useEffect(() => { if (selDev) loadDevice(selDev) }, [selDev])
+  useEffect(() => { if (selDev) loadDevice(selDev) }, [selDev, loadDevice])
 
 
   // Socket.IO live
