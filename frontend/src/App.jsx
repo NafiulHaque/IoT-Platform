@@ -13,7 +13,7 @@ import Alerts             from './pages/Alerts'
 import Users              from './pages/Users'
 import Settings           from './pages/Settings'
 // import EnergyDashboard    from './pages/EnergyDashboard'
-import TemperatureAnalysis from './pages/TempAnalysis'
+//import TemperatureAnalysis from './pages/TempAnalysis'
 
 export default function App() {
   return (
@@ -35,7 +35,7 @@ export default function App() {
                     <Route path="/alerts"             element={<Alerts />} />
                     <Route path="/users"              element={<Users />} />
                     <Route path="/settings"           element={<Settings />} />
-                   <Route path="/tempanalysis"        element={<TemperatureAnalysis />} />
+                   {/* <Route path="/tempanalysis"        element={<TemperatureAnalysis />} /> */}
                   </Routes>
                 </Layout>
               </ProtectedRoute>
