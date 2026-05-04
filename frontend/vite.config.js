@@ -24,14 +24,14 @@ export default defineConfig({
     }
 
   },
-  optimizeDeps:{
-    include:[
-      'react-gauge-chart',
-      'react-is',
-       'prop-types',
-    ]
-  },
-   commonjsOptions: {
-    include: [/node_modules/],
-  },
+  // optimizeDeps:{
+  //   include:[
+  //     'react-gauge-chart',
+  //     'react-is',
+  //      'prop-types',
+  //   ]
+  // },
+  //  commonjsOptions: {
+  //   include: [/node_modules/],
+  // },
 });
