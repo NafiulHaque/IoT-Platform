@@ -13,7 +13,7 @@ export default defineConfig({
     outDir: 'dist',
     sourcemap: false,
     chunkSizeWarningLimit: 1000,
-    rolldownOptions:{
+    rollupOptions:{
       output:{
         manualChunks:{
            vendor:  ['react', 'react-dom', 'react-router-dom'],
