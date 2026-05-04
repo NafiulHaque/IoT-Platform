@@ -5,33 +5,35 @@ import react from "@vitejs/plugin-react";
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
-    react(), 
+    react(),
     tailwindcss(),
-     
   ],
-  build:{
+  build: {
     outDir: 'dist',
     sourcemap: false,
     chunkSizeWarningLimit: 1000,
-    rollupOptions:{
-      output:{
-        manualChunks:{
-           vendor:  ['react', 'react-dom', 'react-router-dom'],
-          charts:  ['recharts', 'chart.js', 'react-chartjs-2', 'react-gauge-chart', 'react-is', 'prop-types'],
-          socket:  ['socket.io-client'],
+    rollupOptions: {
+      output: {
+        // Change the object to this function syntax
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) {
+              return 'vendor';
+            }
+            if (
+              id.includes('recharts') || 
+              id.includes('chart.js') || 
+              id.includes('react-chartjs-2') || 
+              id.includes('react-gauge-chart')
+            ) {
+              return 'charts';
+            }
+            if (id.includes('socket.io-client')) {
+              return 'socket';
+            }
+          }
         }
       }
     }
-
   },
-  // optimizeDeps:{
-  //   include:[
-  //     'react-gauge-chart',
-  //     'react-is',
-  //      'prop-types',
-  //   ]
-  // },
-  //  commonjsOptions: {
-  //   include: [/node_modules/],
-  // },
 });
