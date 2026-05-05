@@ -145,9 +145,11 @@ export default function EnergyDashboard() {
     const SOCKET_URL =
       import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000'
 
+    console.log('Socket connecting to', SOCKET_URL)
+    
     const socket = io(SOCKET_URL, {
       auth: { token },
-      transports: ['websocket', 'polling'],
+      transports: ['polling','websocket'],
       upgrade: true,
       timeout: 20000,
       reconnectionAttempts: 15,

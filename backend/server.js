@@ -51,7 +51,7 @@ const io = new Server(server, {
   // needed for Railway proxy
   allowEIO3:         true,
  // Explicit path (default is fine but being explicit helps debugging)
-  path: '/socket.io/',
+  // path: '/socket.io/',
 })
 
 // ── Health check endpoint — Railway needs this ──
@@ -63,6 +63,13 @@ app.use('/api/devices',  require('./routes/devices'));
 app.use('/api/readings', require('./routes/readings'));
 app.use('/api/analytics', require('./routes/analytics'));
 
+
+// ── 404 handler for unknown API routes ───────────────
+app.use('/api/*', (req, res) => {
+  res.status(404).json({
+    message: `Route not found: ${req.method} ${req.originalUrl}`
+  })
+})
 
 // ── Socket.IO auth middleware ──
 io.use((socket, next) => {
