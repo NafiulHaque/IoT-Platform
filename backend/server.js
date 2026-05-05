@@ -64,12 +64,7 @@ app.use('/api/readings', require('./routes/readings'));
 app.use('/api/analytics', require('./routes/analytics'));
 
 
-// ── 404 handler for unknown API routes ───────────────
-app.use('/api/*', (req, res) => {
-  res.status(404).json({
-    message: `Route not found: ${req.method} ${req.originalUrl}`
-  })
-})
+
 
 // ── Socket.IO auth middleware ──
 io.use((socket, next) => {
