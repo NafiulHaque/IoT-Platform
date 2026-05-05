@@ -34,6 +34,7 @@ export default function EnergyDashboard() {
   const tc = useThemeClasses()
   const { token } = useAuth()
   const socketRef = useRef(null)
+  const selDevRef = useRef(null)
 
   const [devices, setDevices] = useState([])
   const [selDev, setSelDev] = useState(null)
@@ -43,6 +44,15 @@ export default function EnergyDashboard() {
   const [uptime, setUptime] = useState([])
   const [liveStatus, setLive] = useState('connecting')
   const [bdTime, setBdTime] = useState('')
+
+
+
+   // Keep selDevRef in sync with selDev state on every render
+  useEffect(() => {
+    selDevRef.current = selDev
+  }, [selDev])
+
+
 
   // BD clock
   useEffect(() => {
@@ -75,31 +85,38 @@ export default function EnergyDashboard() {
 
   // ── Load device list ─────────────────────────────────
   useEffect(() => {
-    import('../api/axios').then(({ default: api }) => {
-      api.get('/devices')
-        .then(r => {
-          setDevices(r.data)
-          // Set first online device, fallback to first device
-          const first = r.data.find(d => d.status === 'online') ?? r.data[0]
-          if (first) setSelDev(first.device_id)
-        })
-        .catch(err => console.error('Failed to load devices:', err.message))
-    })
+    const loadDevices = async () => {
+      try{
+        const {default: api} = await import('../api/axios')
+        const {data} = await api.get('/devices')
+        setDevices(data)
+
+        const first = data.find(d => d.status === 'online') ?? data[0]
+        if(first?.device_id){
+          setSelDev(first.device_id)
+        }
+      }
+      catch(err){
+        console.error('[Devices] Failed to load:', err.message)
+      }
+    }
+    
+    loadDevices()
   }, [])
 
 
   // In loadDevice() — no change needed, uptime is already fetched
   // But add a refresh every 60 seconds so the current hour updates live
 
-  // useEffect(() => {
-  //   if (!selDev) return
-  //   const refresh = () =>
-  //     getUptime(selDev).then(setUptime)
+  useEffect(() => {
+    if (!selDev) return
+    const refresh = () =>
+      getUptime(selDev).then(setUptime)
 
-  //   refresh()                              // immediate on device change
-  //   const id = setInterval(refresh, 60_000) // refresh every 60s
-  //   return () => clearInterval(id)
-  // }, [selDev])
+    refresh()                              // immediate on device change
+    const id = setInterval(refresh, 60_000) // refresh every 60s
+    return () => clearInterval(id)
+  }, [selDev])
 
 
   // Replace the loadDevice function with this:
@@ -109,7 +126,7 @@ export default function EnergyDashboard() {
       return
     }
     try {
-      const [sum, hist, hm, up] = await Promise.all([
+      const [sum, hist, hm, up] = await Promise.allSettled([
         getSummary(id),
         getHistory(id, 30),
         getHeatmap(id),      // now returns BST-correct grid
@@ -154,7 +171,7 @@ export default function EnergyDashboard() {
       timeout: 20000,
       reconnectionAttempts: 15,
       reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000
+      reconnectionDelayMax: 5000,
     })
 
     socketRef.current = socket
@@ -172,8 +189,23 @@ export default function EnergyDashboard() {
       setLive('disconnected')
     })
 
+
     socket.on('sensor_update', ({ device_id, reading }) => {
-      if (!selDev || device_id !== selDev) return
+     const currentDevice = selDevRef.current
+
+     if(!currentDevice){
+      console.log('[Socket] sensor_update ignored - no device selected')
+      return 
+     }
+     if (device_id !== currentDevice){
+      setDevices(prev => prev.map(d =>
+        d.device_id === device_id
+          ? { ...d, status:  'online', lastSeen: reading.reaceivedAt}
+          : d
+      ))
+      return 
+     }
+
       setLatest(reading)
       setHistory(prev => [...prev.slice(-29), reading])
       setDevices(prev => prev.map(d =>
@@ -182,6 +214,7 @@ export default function EnergyDashboard() {
           : d
       ))
     })
+
     socket.on('device_status', ({ device_id, status }) => {
       setDevices(prev => prev.map(d =>
         d.device_id === device_id ? { ...d, status } : d
@@ -195,11 +228,10 @@ export default function EnergyDashboard() {
       socketRef.current = null
     }
 
-  }, [token])
+  }, [token]) 
 
 
-  const selDevRef = useRef(selDev)
-  useEffect(() => { selDevRef.current = selDev }, [selDev])
+ 
 
   const vstat = voltageStatus(latest?.voltage)
 
@@ -239,7 +271,14 @@ export default function EnergyDashboard() {
             selected={selDev}
             onSelect={setSelDev}
           />
-
+       {/* Empty state */}
+        {!selDev && (
+          <div className={`${tc.card} p-8 text-center`}>
+            <p className={`text-sm ${tc.muted}`}>
+              No device selected. Add a device from the Devices page.
+            </p>
+          </div>
+        )}
 
           {/* RIGHT: live badge + BST clock */}
           <div className="flex items-center gap-3">

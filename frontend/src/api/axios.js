@@ -23,8 +23,8 @@ api.interceptors.request.use((config) => {
 
 // Redirect to login on 401
 api.interceptors.response.use(
-  res => res,
-  err => {
+  (res) => res,
+  (err) => {
     if (err.blocked) return Promise.reject(err) 
     if (err.response?.status === 401) {
       sessionStorage.removeItem('iot-token')
