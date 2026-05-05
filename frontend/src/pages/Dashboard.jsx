@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { io } from 'socket.io-client'
 import {
   Chart as ChartJS, CategoryScale, LinearScale,
@@ -6,10 +6,10 @@ import {
 } from 'chart.js'
 import { useAuth } from '../context/AuthContext'
 import { useThemeClasses } from '../context/ThemeContext'
-import {  timeAgo } from '../utils/time'
+import { timeAgo } from '../utils/time'
 import {
-  fmtPower,  fmtCurrent,
-   fmtFreq, voltageStatus
+  fmtPower, fmtCurrent,
+  fmtFreq, voltageStatus
 } from '../utils/energy'
 import { getSummary, getHistory, getHeatmap, getUptime } from '../api/energy'
 import PrimaryCard from '../components/energy/PrimaryCard'
@@ -28,11 +28,12 @@ ChartJS.register(
   LineElement, BarElement, Filler, Tooltip, Legend
 )
 
-let socket
+
 
 export default function EnergyDashboard() {
   const tc = useThemeClasses()
   const { token } = useAuth()
+  const socketRef = useRef(null)
 
   const [devices, setDevices] = useState([])
   const [selDev, setSelDev] = useState(null)
@@ -53,45 +54,60 @@ export default function EnergyDashboard() {
 
   // Load device list and select latest online device
 
-  const selectLatestOnlineDevice = (devices) => {
-    const onlineDevices = devices.filter(d => d.status === 'online')
-    return onlineDevices.length > 0 ? onlineDevices[0].device_id : null
-  }
+  // const selectLatestOnlineDevice = (devices) => {
+  //   const onlineDevices = devices.filter(d => d.status === 'online')
+  //   return onlineDevices.length > 0 ? onlineDevices[0].device_id : null
+  // }
+  // useEffect(() => {
+  //   import('../api/axios').then(({ default: api }) =>
+  //     api.get('/devices').then(r => {
+  //       setDevices(r.data)
+  //       if (r.data.length > 0) {
+  //         const latestOnlineDevice = selectLatestOnlineDevice(r.data)
+  //         if (latestOnlineDevice) {
+  //           setSelDev(latestOnlineDevice)
+  //         }
+  //       }
+  //     })
+  //   )
+  // }, [])
+
+
+  // ── Load device list ─────────────────────────────────
   useEffect(() => {
-    import('../api/axios').then(({ default: api }) =>
-      api.get('/devices').then(r => {
-        setDevices(r.data)
-        if (r.data.length > 0) {
-          const latestOnlineDevice = selectLatestOnlineDevice(r.data)
-          if (latestOnlineDevice) {
-            setSelDev(latestOnlineDevice)
-          }
-        }
-      })
-    )
+    import('../api/axios').then(({ default: api }) => {
+      api.get('/devices')
+        .then(r => {
+          setDevices(r.data)
+          // Set first online device, fallback to first device
+          const first = r.data.find(d => d.status === 'online') ?? r.data[0]
+          if (first) setSelDev(first.device_id)
+        })
+        .catch(err => console.error('Failed to load devices:', err.message))
+    })
   }, [])
 
 
   // In loadDevice() — no change needed, uptime is already fetched
   // But add a refresh every 60 seconds so the current hour updates live
 
-  useEffect(() => {
-    if (!selDev) return
-    const refresh = () =>
-      getUptime(selDev).then(setUptime)
+  // useEffect(() => {
+  //   if (!selDev) return
+  //   const refresh = () =>
+  //     getUptime(selDev).then(setUptime)
 
-    refresh()                              // immediate on device change
-    const id = setInterval(refresh, 60_000) // refresh every 60s
-    return () => clearInterval(id)
-  }, [selDev])
+  //   refresh()                              // immediate on device change
+  //   const id = setInterval(refresh, 60_000) // refresh every 60s
+  //   return () => clearInterval(id)
+  // }, [selDev])
 
 
   // Replace the loadDevice function with this:
   const loadDevice = useCallback(async (id) => {
-    if (!id || id.trim() === ''){
-      console.warn('loadDevice called with empty id')
+    if (!id || typeof id !== 'string' || id.trim() === '') {
+      console.warn('loadDevice called with empty id', id)
       return
-    } 
+    }
     try {
       const [sum, hist, hm, up] = await Promise.all([
         getSummary(id),
@@ -100,43 +116,88 @@ export default function EnergyDashboard() {
         getUptime(id),       // now returns full 0–23 BST array
       ])
 
-      setLatest(sum.latest)
-      setHistory(
-        [...hist].sort((a, b) =>
-          new Date(a.receivedAt) - new Date(b.receivedAt)
+      if (sum.status === 'fulfilled') {
+        setLatest(sum.value.latest)
+      }
+      if (hist.status === 'fulfilled') {
+        const sorted = [...hist.value].sort(
+          (a, b) => new Date(a.receivedAt) - new Date(b.receivedAt)
         )
-      )
-      setHeatmap(hm)
-      setUptime(up)
+        setHistory(sorted)
+      }
+      if (hm.status === 'fulfilled') setHeatmap(hm.value)
+      if (up.status === 'fulfilled') setUptime(up.value)
+
     } catch (err) {
-      console.error('loadDevice error:', err)
+      if (!err.blocked) console.error('loadDevice error:', err.message)
     }
   }, [])
 
-  useEffect(() => { if (selDev) loadDevice(selDev) }, [selDev, loadDevice])
+  useEffect(() => {
+    if (selDev) loadDevice(selDev)
+  }, [selDev, loadDevice])
 
 
   // Socket.IO live
   useEffect(() => {
-    socket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000', { 
+    if (!token) return
+
+    const SOCKET_URL =
+      import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000'
+
+    const socket = io(SOCKET_URL, {
       auth: { token },
-      transports:['websocket', 'polling'],
+      transports: ['websocket', 'polling'],
       upgrade: true,
-      reconnectionAttempts: 10,
-      reconnectionDelay: 2000,
+      timeout: 20000,
+      reconnectionAttempts: 15,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000
     })
-    socket.on('connect', () => setLive('live'))
-    socket.on('disconnect', () => setLive('disconnected'))
+
+    socketRef.current = socket
+
+    socket.on('connect', () => {
+      console.log('Socket connected:', socket.id)
+      setLive('live')
+    })
+    socket.on('disconnect', (reason) => {
+      console.log('Socket disconnected:', reason)
+      setLive('disconnected')
+    })
+    socket.on('connect_error', (err) => {
+      console.warn('Socket connection error:', err.message)
+      setLive('disconnected')
+    })
+
     socket.on('sensor_update', ({ device_id, reading }) => {
-      if (device_id !== selDev) return
+      if (!selDev || device_id !== selDev) return
       setLatest(reading)
       setHistory(prev => [...prev.slice(-29), reading])
       setDevices(prev => prev.map(d =>
-        d.device_id === device_id ? { ...d, status: 'online', lastSeen: reading.receivedAt } : d
+        d.device_id === device_id
+          ? { ...d, status: 'online', lastSeen: reading.receivedAt }
+          : d
       ))
     })
-    return () => socket.disconnect()
-  }, [token, selDev])
+    socket.on('device_status', ({ device_id, status }) => {
+      setDevices(prev => prev.map(d =>
+        d.device_id === device_id ? { ...d, status } : d
+      ))
+    })
+
+
+    return () => {
+      socket.off()
+      socket.disconnect()
+      socketRef.current = null
+    }
+
+  }, [token])
+
+
+  const selDevRef = useRef(selDev)
+  useEffect(() => { selDevRef.current = selDev }, [selDev])
 
   const vstat = voltageStatus(latest?.voltage)
 
@@ -168,7 +229,7 @@ export default function EnergyDashboard() {
           onSelect={setSelDev}
         /> */}
 
-       
+
         <div className="dash-topbar flex items-center justify-between gap-3 flex-wrap">
           {/* LEFT: trigger button — THIS replaces the old pill/table selector */}
           <DeviceSwitcher
@@ -176,6 +237,7 @@ export default function EnergyDashboard() {
             selected={selDev}
             onSelect={setSelDev}
           />
+
 
           {/* RIGHT: live badge + BST clock */}
           <div className="flex items-center gap-3">
@@ -187,89 +249,97 @@ export default function EnergyDashboard() {
             <span className={`text-xs font-mono ${tc.muted}`}>{bdTime}</span>
           </div>
         </div>
+       
+       
+        {selDev && (
+          <>
+
+            {/* ── Bento row 1: Primary metrics ── */}
+            <div className="grid grid-cols-4 lg:grid-cols-6 md:grid-cols-4 gap-3">
+              <PrimaryCard
+                label="Active power"
+                value={latest?.power != null ? (latest.power / 1000).toFixed(2) : '—'}
+                unit="kW"
+                sub={fmtPower(latest?.power)}
+                sparkData={history.map(r => r.power)}
+                sparkCssVar="--color-power"
+              />
+              <PrimaryCard
+                label="Energy consumed"
+                value={latest?.energy != null ? Number(latest.energy).toFixed(3) : '—'}
+                unit="kWh"
+                sub="Today cumulative"
+                sparkData={history.map(r => r.energy)}
+                sparkCssVar="--color-energy"
+              />
+              <PrimaryCard
+                label="Voltage"
+                value={latest?.voltage != null ? Number(latest.voltage).toFixed(1) : '—'}
+                unit="V"
+                sub={vstat.label}
+                subStyle={{ color: vstat.ok ? 'var(--color-energy)' : '#f87171' }}
+                sparkData={history.map(r => r.voltage)}
+                sparkCssVar="--color-voltage"
+              />
 
 
-        {/* ── Bento row 1: Primary metrics ── */}
-        <div className="grid grid-cols-4 lg:grid-cols-6 md:grid-cols-4 gap-3">
-          <PrimaryCard
-            label="Active power"
-            value={latest?.power != null ? (latest.power / 1000).toFixed(2) : '—'}
-            unit="kW"
-            sub={fmtPower(latest?.power)}
-            sparkData={history.map(r => r.power)}
-            sparkCssVar="--color-power"
-          />
-          <PrimaryCard
-            label="Energy consumed"
-            value={latest?.energy != null ? Number(latest.energy).toFixed(3) : '—'}
-            unit="kWh"
-            sub="Today cumulative"
-            sparkData={history.map(r => r.energy)}
-            sparkCssVar="--color-energy"
-          />
-          <PrimaryCard
-            label="Voltage"
-            value={latest?.voltage != null ? Number(latest.voltage).toFixed(1) : '—'}
-            unit="V"
-            sub={vstat.label}
-            subStyle={{ color: vstat.ok ? 'var(--color-energy)' : '#f87171' }}
-            sparkData={history.map(r => r.voltage)}
-            sparkCssVar="--color-voltage"
-          />
+              {/* ── Bento row 2: Secondary metrics ── */}
 
-
-          {/* ── Bento row 2: Secondary metrics ── */}
-
-          <SecondaryCard
-            label="Current"
-            value={fmtCurrent(latest?.current)}
-            unit="A"
-            gaugePct={(latest?.current ?? 0) / 1 * 100}
-            gaugeCssVar="--color-current"
-            gaugeMin="0 A"
-            gaugeMax="1 A"
-          />
-          <PFGauge value={latest?.pf} />
-          <SecondaryCard
-            label="Frequency"
-            value={fmtFreq(latest?.frequency)}
-            unit="Hz"
-            gaugePct={((latest?.frequency ?? 49) - 49) / 1.2 * 100}
-            gaugeCssVar="--color-freq"
-            gaugeMin="49 Hz"
-            gaugeMax="50.2 Hz"
-          />
-        </div>
-
-        {/* ── Ambient ── */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {[
-            { label: 'Temperature', value: `${latest?.temp_c ?? '—'}°C`, cssVar: '--color-temp' },
-            { label: 'Humidity', value: `${latest?.humidity ?? '—'}%`, cssVar: '--color-hum' },
-            { label: 'Heat index', value: `${latest?.heat_index ?? '—'}°C`, cssVar: '--color-temp' },
-            { label: 'Last update', value: latest ? timeAgo(latest.receivedAt) : '—', cssVar: null },
-          ].map(m => (
-            <div key={m.label} className={`${tc.card} ${tc.cardHover} p-4`}>
-              <p className={tc.label}>{m.label}</p>
-              <p className="text-xl font-medium mt-1"
-                style={m.cssVar ? { color: `var(${m.cssVar})` } : {}}>
-                {m.value}
-              </p>
+              <SecondaryCard
+                label="Current"
+                value={fmtCurrent(latest?.current)}
+                unit="A"
+                gaugePct={(latest?.current ?? 0) / 1 * 100}
+                gaugeCssVar="--color-current"
+                gaugeMin="0 A"
+                gaugeMax="1 A"
+              />
+              <PFGauge value={latest?.pf} />
+              <SecondaryCard
+                label="Frequency"
+                value={fmtFreq(latest?.frequency)}
+                unit="Hz"
+                gaugePct={((latest?.frequency ?? 49) - 49) / 1.2 * 100}
+                gaugeCssVar="--color-freq"
+                gaugeMin="49 Hz"
+                gaugeMax="50.2 Hz"
+              />
             </div>
-          ))}
-        </div>
 
-        {/* ── Dual axis + Uptime ── */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <DualAxisChart history={history} />
-          <UptimeChart data={uptime} />
-        </div>
+            {/* ── Ambient ── */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {[
+                { label: 'Temperature', value: `${latest?.temp_c ?? '—'}°C`, cssVar: '--color-temp' },
+                { label: 'Humidity', value: `${latest?.humidity ?? '—'}%`, cssVar: '--color-hum' },
+                { label: 'Heat index', value: `${latest?.heat_index ?? '—'}°C`, cssVar: '--color-temp' },
+                { label: 'Last update', value: latest ? timeAgo(latest.receivedAt) : '—', cssVar: null },
+              ].map(m => (
+                <div key={m.label} className={`${tc.card} ${tc.cardHover} p-4`}>
+                  <p className={tc.label}>{m.label}</p>
+                  <p className="text-xl font-medium mt-1"
+                    style={m.cssVar ? { color: `var(${m.cssVar})` } : {}}>
+                    {m.value}
+                  </p>
+                </div>
+              ))}
+            </div>
 
-        {/* ── Heatmap ── */}
-        <EnergyHeatmap data={heatmap} />
+            {/* ── Dual axis + Uptime ── */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <DualAxisChart history={history} />
+              <UptimeChart data={uptime} />
+            </div>
 
-        {/* ── Consumption ── */}
-        <ConsumptionChart deviceId={selDev} />
+            {/* ── Heatmap ── */}
+            <EnergyHeatmap data={heatmap} />
+
+            {/* ── Consumption ── */}
+            <ConsumptionChart deviceId={selDev} />
+
+
+          </>
+        )}
+
 
       </div>
     </div>

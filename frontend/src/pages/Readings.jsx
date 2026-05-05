@@ -43,8 +43,12 @@ export default function Readings() {
     setPage(1)
     api.get(`/readings/${selected}`)
       .then(r => {
-        const sorted = r.data.sort((a, b) => new Date(b.receivedAt) - new Date(a.receivedAt))
+        const sorted = r.data.sort(
+          (a, b) => new Date(b.receivedAt) - new Date(a.receivedAt))
         setReadings(sorted)
+      })
+      .catch(err => {
+        if (!err.blocked) console.error(err.message)
       })
       .finally(() => setLoading(false))
   }, [selected])

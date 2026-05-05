@@ -50,6 +50,8 @@ const io = new Server(server, {
   upgradeTimeout:    30000,
   // needed for Railway proxy
   allowEIO3:         true,
+ // Explicit path (default is fine but being explicit helps debugging)
+  path: '/socket.io/',
 })
 
 // ── Health check endpoint — Railway needs this ──
