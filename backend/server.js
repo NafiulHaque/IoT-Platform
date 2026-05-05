@@ -39,7 +39,17 @@ const io = new Server(server, {
   cors: {
     origin: allowedOrigins,
     credentials: true,
+    methods: ['GET', 'POST'],
   },
+   // allow both transports
+  transports:        ['polling', 'websocket'],
+  allowUpgrades:     true,
+  // increase timeouts for Railway cold starts
+  pingTimeout:       60000,
+  pingInterval:      25000,
+  upgradeTimeout:    30000,
+  // needed for Railway proxy
+  allowEIO3:         true,
 })
 
 // ── Health check endpoint — Railway needs this ──

@@ -121,6 +121,9 @@ export default function EnergyDashboard() {
     socket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000', { 
       auth: { token },
       transports:['websocket', 'polling'],
+      upgrade: true,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 2000,
     })
     socket.on('connect', () => setLive('live'))
     socket.on('disconnect', () => setLive('disconnected'))
