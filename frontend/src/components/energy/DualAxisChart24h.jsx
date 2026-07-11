@@ -123,7 +123,7 @@ function DaySidebar({ days, selDay, dailyKwh, onSelect, tc, cc }) {
               [&::-webkit-scrollbar-thumb]:bg-gray-700
               [&::-webkit-scrollbar-thumb]:rounded-full
               hover:[&::-webkit-scrollbar-thumb]:bg-gray-500`}
-      style={{ width: 112, maxHeight: 380 }}
+      style={{ width: 112, maxHeight: 330 }}
     >
       <p className={`px-3 py-2 text-xs uppercase tracking-wider ${tc.muted}`}
         style={{ fontSize: 9, letterSpacing: '.07em' }}>
@@ -312,7 +312,7 @@ export default function DualAxisChart24h({ deviceId, liveReading = null }) {
             time:  formatBSTTime(pt.receivedAt),
             volt:  pt.voltage?.toFixed(1),
             curr:  pt.current?.toFixed(2),
-            power: pt.power != null ? (pt.power * 1000).toFixed(0) : null,
+            power: pt.power != null ? (pt.power).toFixed(0) : null,
           })
         },
       },
