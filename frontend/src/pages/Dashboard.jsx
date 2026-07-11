@@ -21,6 +21,7 @@ import UptimeChart from '../components/energy/UptimeChart'
 import ConsumptionChart from '../components/energy/ConsumptionChart'
 //import DeviceSelector   from '../components/energy/DeviceSelector'
 import DeviceSwitcher from '../components/energy/DeviceSwitcher'
+import DualAxisChart24h from '../components/energy/DualAxisChart24h'
 
 
 ChartJS.register(
@@ -370,6 +371,8 @@ export default function EnergyDashboard() {
               <DualAxisChart history={history} />
               <UptimeChart data={uptime} />
             </div>
+            {/* ── Daily summary ── */}
+            <DualAxisChart24h deviceId={selDev} liveReading={latest} />
 
             {/* ── Heatmap ── */}
             <EnergyHeatmap data={heatmap} />

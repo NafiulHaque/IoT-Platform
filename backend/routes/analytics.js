@@ -224,4 +224,145 @@ router.get('/:device_id/summary', protect, async (req, res) => {
   }
 })
 
+// ── NEW ROUTE ─────────────────────────────────────────────────────────────────
+
+/**
+ * GET /api/analytics/:device_id/day
+ * Query param: date=YYYY-MM-DD  (BST calendar date)
+ *
+ * Returns:
+ *  {
+ *    readings: [...],     // all readings for that BST day, sorted asc
+ *    totalKwh: number,    // sum of energy for sidebar display
+ *    date: string,        // the queried BST date
+ *    count: number,
+ *  }
+ */
+router.get('/:device_id/day', protect, async (req, res) => {
+  try {
+    const { device_id } = req.params
+    const { date }      = req.query   // e.g. "2026-04-11"
+
+    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return res.status(400).json({
+        message: 'date query param required in YYYY-MM-DD format (BST)'
+      })
+    }
+
+    const BST_OFFSET_MS = 6 * 60 * 60 * 1000   // UTC+6
+
+    // Parse the BST date and compute UTC window
+    // BST 00:00 on [date]  = UTC [date - 6h]
+    // BST 23:59:59 on [date] = UTC [date + 17h59m59s]
+    const [yr, mo, dy] = date.split('-').map(Number)
+
+    // Start of day in BST → subtract 6h to get UTC
+    const bstDayStart  = new Date(Date.UTC(yr, mo - 1, dy, 0, 0, 0))
+    const utcStart     = new Date(bstDayStart.getTime() - BST_OFFSET_MS)
+
+    // End of day in BST → add 23h59m59.999s then subtract 6h
+    const bstDayEnd    = new Date(Date.UTC(yr, mo - 1, dy, 23, 59, 59, 999))
+    const utcEnd       = new Date(bstDayEnd.getTime() - BST_OFFSET_MS)
+
+    const readings = await SensorReading.find({
+      device_id,
+      receivedAt: { $gte: utcStart, $lte: utcEnd },
+    })
+    .sort({ receivedAt: 1 })          // ascending — for chart left→right
+    .select('voltage current power energy frequency pf temp_c humidity heat_index receivedAt')
+    .lean()
+
+    // Calculate total kWh for the day
+    // Each reading represents one 10-second interval → kWh = W × (10/3600) / 1000
+    const totalKwh = readings.reduce((sum, r) => {
+      return sum + ((r.power ?? 0) * 10 / 3600 / 1000)
+    }, 0)
+
+    res.json({
+      date,
+      count:    readings.length,
+      totalKwh: +totalKwh.toFixed(3),
+      readings,
+    })
+
+  } catch (err) {
+    console.error('[analytics/day] Error:', err.message)
+    res.status(500).json({ message: err.message })
+  }
+})
+
+
+// ── ALSO ADD to backend/routes/analytics.js ──────────────────────────────────
+// GET /api/analytics/:device_id/day-list?days=14
+// Returns the kWh total for each of the last N days — used to pre-populate
+// the sidebar without fetching full readings for every day
+
+router.get('/:device_id/day-list', protect, async (req, res) => {
+  try {
+    const { device_id } = req.params
+    const days          = Math.min(parseInt(req.query.days) || 14, 90)
+    const BST_OFFSET_MS = 6 * 60 * 60 * 1000
+
+    const now = new Date()
+    // Start of today in BST
+    const todayBST = new Date(now.getTime() + BST_OFFSET_MS)
+    todayBST.setUTCHours(0, 0, 0, 0)
+    const utcStart = new Date(todayBST.getTime() - BST_OFFSET_MS - (days - 1) * 86400000)
+
+    const pipeline = [
+      {
+        $match: {
+          device_id,
+          receivedAt: { $gte: utcStart }
+        }
+      },
+      {
+        $addFields: {
+          bstDate: {
+            $dateAdd: {
+              startDate: '$receivedAt',
+              unit:      'millisecond',
+              amount:    BST_OFFSET_MS
+            }
+          }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            $dateToString: { format: '%Y-%m-%d', date: '$bstDate' }
+          },
+          totalKwh: {
+            $sum: {
+              $multiply: [
+                { $ifNull: ['$power', 0] },
+                { $literal: 10 / 3600 / 1000 }
+              ]
+            }
+          },
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { _id: -1 } }
+    ]
+
+    const results = await SensorReading.aggregate(pipeline)
+
+    // Return as { date → { kwh, count } }
+    const map = {}
+    results.forEach(r => {
+      map[r._id] = {
+        kwh:   +r.totalKwh.toFixed(3),
+        count: r.count
+      }
+    })
+
+    res.json(map)
+
+  } catch (err) {
+    console.error('[analytics/day-list] Error:', err.message)
+    res.status(500).json({ message: err.message })
+  }
+})
+
 module.exports = router

@@ -36,3 +36,17 @@ export const getSummary = (device_id) => {
   requireId(device_id, 'getSummary')
   return api.get(`/analytics/${device_id}/summary`).then(r => r.data)
 }
+
+// ── NEW: fetch all readings for a specific BST calendar date ─────────────────
+// date: "YYYY-MM-DD" string in BST
+export const getDayReadings = (device_id, date) => {
+  requireId(device_id, 'getDayReadings')
+  if (!date) throw new Error('getDayReadings: date required')
+  return api.get(`/analytics/${device_id}/day?date=${date}`).then(r => r.data)
+}
+ 
+// ── NEW: fetch kWh totals for the last N days (for sidebar display) ──────────
+export const getDayList = (device_id, days = 14) => {
+  requireId(device_id, 'getDayList')
+  return api.get(`/analytics/${device_id}/day-list?days=${days}`).then(r => r.data)
+}
