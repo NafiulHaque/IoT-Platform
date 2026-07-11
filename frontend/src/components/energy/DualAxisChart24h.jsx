@@ -86,7 +86,7 @@ function calcStats(pts) {
     cAvg:     avg(currs).toFixed(2),
     cMin:     Math.min(...currs).toFixed(2),
     cMax:     Math.max(...currs).toFixed(2),
-    peakW:    (peakPwr * 1000).toFixed(0),
+    peakW:    (peakPwr).toFixed(0),
     peakTime: peakPt ? formatBSTTime(peakPt.receivedAt) : '—',
     count:    pts.length,
     hasAnomaly,
@@ -117,7 +117,12 @@ function StatItem({ label, value, range, color, tc }) {
 function DaySidebar({ days, selDay, dailyKwh, onSelect, tc, cc }) {
   return (
     <div
-      className={`border-r ${tc.border} overflow-y-auto flex-shrink-0`}
+      className={`border-r ${tc.border} overflow-y-auto shrink-0  scrollbar-thin 
+              [&::-webkit-scrollbar]:w-1.5
+              [&::-webkit-scrollbar-track]:bg-transparent
+              [&::-webkit-scrollbar-thumb]:bg-gray-700
+              [&::-webkit-scrollbar-thumb]:rounded-full
+              hover:[&::-webkit-scrollbar-thumb]:bg-gray-500`}
       style={{ width: 112, maxHeight: 380 }}
     >
       <p className={`px-3 py-2 text-xs uppercase tracking-wider ${tc.muted}`}
@@ -135,11 +140,11 @@ function DaySidebar({ days, selDay, dailyKwh, onSelect, tc, cc }) {
             onClick={() => onSelect(day.d)}
             className={`
               relative w-full flex flex-col text-left px-3 py-2 mb-0.5
-              rounded-none transition-all duration-100
+              rounded-none transition-all duration-100 
               focus:outline-none
               ${isActive
                 ? `${tc.active}`
-                : `hover:opacity-80 bg-transparent`
+                : `hover:bg-gray-600/10 ${tc.muted} ${tc.border} border-l-0 border-r-0`
               }
             `}
           >
@@ -362,7 +367,7 @@ export default function DualAxisChart24h({ deviceId, liveReading = null }) {
       <div className={`flex items-start justify-between
                        px-4 pt-4 pb-0 gap-3 flex-wrap`}>
         <div>
-          <p className="text-sm font-semibold" style={{ letterSpacing: '-.01em' }}>
+          <p className={`text-sm font-semibold ${tc.label}`}style={{ letterSpacing: '-.01em' }}>
             Voltage &amp; Current — 24h Dual Axis
           </p>
           <p className={`text-xs mt-0.5 font-mono ${tc.muted}`}>
@@ -377,17 +382,18 @@ export default function DualAxisChart24h({ deviceId, liveReading = null }) {
           </span>
         )}
         {selDay === 0 && (
-          <span className={`text-xs px-2 py-0.5 rounded-full ${tc.badge}`}>
+          <span className={`text-xs px-2 py-1 pb-1 rounded-full ${tc.badge}`}>
             <span className="inline-block w-1.5 h-1.5 rounded-full
-                             bg-green-400 animate-pulse mr-1" />
+                             bg-green-400 animate-pulse mr-1 mb-0.5" />
             Live
           </span>
         )}
       </div>
 
       {/* ── Stats row ── */}
-      <div className={`flex flex-wrap gap-5 px-4 py-3 border-b ${tc.border}`}>
-        <StatItem
+      <div className={`flex flex-wrap gap-5 px-4 py-3 border-b justify-between ${tc.border}`}>
+        <div className='flex flex-wrap gap-5'>
+            <StatItem
           label="Avg Voltage"
           value={stats ? `${stats.vAvg} V` : '—'}
           range={stats ? `${stats.vMin}–${stats.vMax} V` : null}
@@ -408,11 +414,12 @@ export default function DualAxisChart24h({ deviceId, liveReading = null }) {
           color={cc.power}
           tc={tc}
         />
+        </div>
         <StatItem
           label="Data points"
           value={stats?.count?.toLocaleString() ?? '—'}
           range="10s interval"
-          color={null}
+          color={cc.tick}
           tc={tc}
         />
         {stats?.hasAnomaly && (
@@ -430,7 +437,8 @@ export default function DualAxisChart24h({ deviceId, liveReading = null }) {
       </div>
 
       {/* ── Body: sidebar + chart ── */}
-      <div className="flex" style={{ minHeight: 0 }}>
+      <div className='overflow-x-auto'>
+      <div className="flex" style={{ minHeight: 0, minWidth: 720 }}>
 
         {/* Day sidebar */}
         <DaySidebar
@@ -542,7 +550,7 @@ export default function DualAxisChart24h({ deviceId, liveReading = null }) {
 
         </div>
       </div>
-
+    </div>
       {/* ── Footer ── */}
       <div className={`flex items-center justify-between px-4 py-2.5
                        border-t ${tc.border}`}>

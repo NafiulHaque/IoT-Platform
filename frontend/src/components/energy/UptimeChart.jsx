@@ -127,7 +127,7 @@ export default function UptimeChart({ data = [] }) {
       {/* Header */}
       <div className="flex items-start justify-between mb-3">
         <div>
-          <p className={`text-xs uppercase tracking-wider ${tc.muted}`}>
+          <p className={`text-xs uppercase tracking-wider ${tc.label}`}>
             24h device uptime
           </p>
           {/* <p className={`text-xs mt-0.5 ${tc.muted}`}>

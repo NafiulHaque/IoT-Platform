@@ -45,7 +45,7 @@ export default function DualAxisChart({ history }) {
   return (
     <div className={`${tc.card} p-4`}>
       <div className="flex items-center justify-between mb-3">
-        <p className={`text-xs uppercase tracking-wider ${tc.muted}`}>Voltage & current — dual axis</p>
+        <p className={`text-xs uppercase tracking-wider ${tc.label}`}>Voltage & current — dual axis</p>
         <div className="flex gap-3 text-xs" style={{ color: tc.muted }}>
           <span className="flex items-center gap-1.5">
             <span className="w-3 h-0.5 inline-block rounded" style={{ background: cc.voltage }} />

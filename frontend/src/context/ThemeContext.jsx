@@ -72,7 +72,7 @@ export function useThemeClasses() {
       accent:     'text-dark-accent-h',
       muted:      'text-dark-muted',
       border:     'border-dark-border',
-      label:      'text-dark-muted text-xs uppercase tracking-wider',
+      label:      'text-dark-label text-xs uppercase tracking-wider',
       nav:        'bg-dark-surface border-b border-dark-border',
       active:     'bg-dark-accent/10 text-dark-accent-h',
       badge:      'bg-green-500/10 text-green-400 border border-green-500/20',

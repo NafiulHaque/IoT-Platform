@@ -17,7 +17,7 @@ export default function EnergyHeatmap({ data }) {
   if (!data?.grid) {
     return (
       <div className={`${tc.card} p-4`}>
-        <p className={`text-xs uppercase tracking-wider mb-2 ${tc.muted}`}>
+        <p className={`text-xs uppercase tracking-wider mb-2 ${tc.label}`}>
           Weekly energy heatmap
         </p>
         <div className={`flex items-center justify-center h-24 ${tc.muted} text-sm`}>
@@ -201,7 +201,7 @@ function PeakCallout({ grid, cc, tc }) {
   return (
     <div className={`flex items-center gap-2 text-xs ${tc.muted}`}>
       <div
-        className="w-2 h-2 rounded-sm flex-shrink-0"
+        className="w-2 h-2 rounded-sm shrink-0"
         style={{ background: cc.heatmap[4] }}
       />
       <span>

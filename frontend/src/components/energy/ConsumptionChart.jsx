@@ -56,7 +56,7 @@ export default function ConsumptionChart({ deviceId }) {
   return (
     <div className={`${tc.card} p-4`}>
       <div className="flex items-center justify-between mb-3">
-        <p className={`text-xs uppercase tracking-wider ${tc.muted}`}>Unit consumption / day</p>
+        <p className={`text-xs uppercase tracking-wider ${tc.label}`}>Unit consumption / day</p>
         <select
           value={range}
           onChange={e => setRange(Number(e.target.value))}
